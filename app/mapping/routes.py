@@ -143,15 +143,26 @@ def new_or_edit(mapping_id=None):
 
         # All the steps have valid information, add this mapping to the database!
         if step == 5 and request.method == 'POST':
+            mapping_type_changed = True
+            deactivate_previous_webhook = False
             if mapping_id:
+                # Update the existing mapping
+                if mapping.m_type == "automatic" and \
+                    form.m_type.data == "manual":
+                    # Need to deactivate the previous webhook
+                    deactivate_previous_webhook = True
+                if mapping.m_type == form.m_type.data:
+                    mapping_type_changed = False
                 mapping.name = form.name.data
                 mapping.description=form.description.data
                 mapping.m_type=form.m_type.data
                 mapping.master_board=form.master_board.data
                 mapping.destination_lists = json.dumps(destination_lists)
                 mapping.user_id = current_user.id
-                flash(_('Your mapping "%(name)s" has been updated.', name=mapping.name))
+                flash(_('Your mapping "%(name)s" has been updated.',
+                    name=mapping.name))
             else:
+                # Create a new mapping
                 mapping = Mapping(
                     name=form.name.data,
                     description=form.description.data,
@@ -160,9 +171,17 @@ def new_or_edit(mapping_id=None):
                     destination_lists = json.dumps(destination_lists),
                     user_id = current_user.id)
                 current_user.mappings.append(mapping)
-                flash(_('Your new mapping "%(name)s" has been created.', name=mapping.name))
+                flash(_('Your new mapping "%(name)s" has been created.',
+                    name=mapping.name))
             db.session.add(mapping)
             db.session.commit()
+
+            # Deactivate previous webhook or create a new webhook
+            if deactivate_previous_webhook:
+                pass
+            elif mapping_type_changed and mapping.m_type == "automatic":
+                pass
+
             return redirect(url_for('main.index'))
 
     # Populate conditional form elements

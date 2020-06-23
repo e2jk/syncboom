@@ -205,18 +205,20 @@ def is_not_get_call(*args, **kwargs):
     return not (args[1] == "GET")
 
 @cache.memoize(60, unless=is_not_get_call)
-def perform_request(method, url, query=None, key=None, token=None):
+def perform_request(method, url, query=None, key=None, token=None,
+    base_url="https://api.trello.com/1/%s"):
     if method not in ("GET", "POST", "PUT", "DELETE"):
         logging.critical("HTTP method '%s' not supported. Exiting..." % method)
         sys.exit(30)
-    url = "https://api.trello.com/1/%s" % url
+    url = base_url % url
     if "args" in globals() and args.dry_run and method != "GET":
         logging.debug("Skipping %s call to '%s' due to --dry-run parameter" % (method, url))
         return {}
-    if not (key and token) and "config" in globals() and "app" in globals():
-        key = app.config['TRELLO_API_KEY']
-        token = config["token"]
-    url += "?key=%s&token=%s" % (key, token)
+    if url.startswith("https://api.trello.com/1/"):
+        if not (key and token) and "config" in globals() and "app" in globals():
+            key = app.config['TRELLO_API_KEY']
+            token = config["token"]
+        url += "?key=%s&token=%s" % (key, token)
     try:
         response = requests.request(
             method,
@@ -521,12 +523,34 @@ def create_new_config():
     print("New configuration saved to file '%s'" % config_file)
     return config_file
 
-def new_webhook():
-    logging.debug("Creating a new webhook for master board %s" % config["master_board"])
+def new_webhook(temp_webhook_file = "data/temp_webhook.json"):
+    logging.debug("Creating a new webhook for master board %s" %
+        config["master_board"])
+    if os.environ.get('ON_HEROKU') == True:
+        # Production URL
+        callbackURL = "https://syncboom.com/webhooks/1/"
+    else:
+        # Get a temporary webhook.site URL to test the webhooks with
+        valid_webhook_token = False
+        try:
+            # Check if we have a previous test URL that is still valid
+            with open(temp_webhook_file, "r") as json_file:
+                webhook_token = json.load(json_file)
+            check_webhook_token = perform_request("GET", "token/%s" % webhook_token["uuid"], base_url='https://webhook.site/%s')
+            valid_webhook_token = True
+        except:
+            pass
+        if not valid_webhook_token:
+            logging.debug("Requesting new temporary webhook token")
+            webhook_token = perform_request("POST", "token", base_url='https://webhook.site/%s')
+            with open(temp_webhook_file, "w") as json_file:
+                json.dump(webhook_token, json_file, indent=2)
+        callbackURL = "https://webhook.site/%s" % webhook_token["uuid"]
+    #TODO: pass config filename for easier retrieval when processing a webhook
+    callbackURL += "?c=config"
+    logging.debug("Webhook callback URL: %s" % callbackURL)
     query = {
-        #TODO: direct to our future web endpoint
-        #TODO: pass config filename for easier retrieval when processing a webhook
-        "callbackURL": "https://webhook.site/04b7baf0-1a59-41e2-b41a-245abeabc847?c=config",
+        "callbackURL": callbackURL,
         "idModel": config["master_board"]
     }
     webhooks = perform_request("POST", "webhooks", query)

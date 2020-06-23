@@ -914,8 +914,10 @@ class TestNewWebhook(FlaskTestCase):
         target.config = {"master_board": "cde"}
         t_pr.return_value = {}
         target.new_webhook()
-        print(t_pr.mock_calls)
-        expected = [call('POST', 'webhooks', {'callbackURL': 'https://webhook.site/04b7baf0-1a59-41e2-b41a-245abeabc847?c=config', 'idModel': 'cde'})]
+        expected = [
+            call('GET', 'token/749119d4-320f-43e9-aaf0-bcae85cfe9c5', base_url='https://webhook.site/%s'),
+            call('POST', 'webhooks', {'callbackURL': 'https://webhook.site/04b7baf0-1a59-41e2-b41a-245abeabc847?c=config', 'idModel': 'cde'})
+        ]
         self.assertEqual(t_pr.mock_calls, expected)
 
 
