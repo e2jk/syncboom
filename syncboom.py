@@ -523,10 +523,13 @@ def create_new_config():
     print("New configuration saved to file '%s'" % config_file)
     return config_file
 
+def is_production_environment():
+    return os.environ.get('ON_HEROKU') == True
+
 def new_webhook(temp_webhook_file = "data/temp_webhook.json"):
     logging.debug("Creating a new webhook for master board %s" %
         config["master_board"])
-    if os.environ.get('ON_HEROKU') == True:
+    if is_production_environment():
         # Production URL
         callbackURL = "https://syncboom.com/webhooks/1/"
     else:

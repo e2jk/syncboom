@@ -17,6 +17,8 @@ from unittest.mock import patch, call, MagicMock
 import io
 import contextlib
 import inspect
+import tempfile
+from uuid import uuid4
 from requests.exceptions import HTTPError, ConnectionError
 from app import create_app, db
 from config import Config
@@ -905,18 +907,69 @@ class TestGlobals(FlaskTestCase):
         self.assertEqual(target.METADATA_SEPARATOR, "\n\n--------------------------------\n*== DO NOT EDIT BELOW THIS LINE ==*\n")
 
 
+class TestIsProductionEnvironment(FlaskTestCase):
+    def test_is_production_environment(self):
+        self.assertEqual(target.is_production_environment(),
+            os.environ.get('ON_HEROKU') == True)
+
+
 class TestNewWebhook(FlaskTestCase):
     @patch("syncboom.perform_request")
-    def test_new_webhook(self, t_pr):
+    def test_new_webhook_devel_fresh(self, t_pr):
         """
-        Test creating a new webhook
+        Test creating a new webhook, Dev mode with no temporary UUID defined
+        """
+        target.config = {"master_board": "cde"}
+        # Generate a random UUID
+        uuid = uuid4()
+        t_pr.side_effect = [{"uuid": str(uuid)}, {}]
+        # Generate a random UUID and save it in a temporary file
+        (temp_fd, temp_webhook_file) = tempfile.mkstemp()
+        target.new_webhook(temp_webhook_file)
+        expected = [
+            call('POST', 'token', base_url='https://webhook.site/%s'),
+            call('POST', 'webhooks', {'callbackURL': 'https://webhook.site/%s?c=config' % uuid, 'idModel': 'cde'})
+        ]
+        self.assertEqual(t_pr.mock_calls, expected)
+        self.assertTrue(os.path.isfile(temp_webhook_file))
+        # Remove the temporary file
+        os.close(temp_fd)
+        os.remove(temp_webhook_file)
+
+    @patch("syncboom.perform_request")
+    def test_new_webhook_devel_temp_data_valid(self, t_pr):
+        """
+        Test creating a new webhook, Dev mode with a valid temporary UUID defined
         """
         target.config = {"master_board": "cde"}
         t_pr.return_value = {}
+        # Generate a random UUID and save it in a temporary file
+        uuid = uuid4()
+        (temp_fd, temp_webhook_file) = tempfile.mkstemp()
+        with open(temp_webhook_file, "w") as json_file:
+            json.dump({"uuid": str(uuid)}, json_file, indent=2)
+        target.new_webhook(temp_webhook_file)
+        expected = [
+            call('GET', 'token/%s' % uuid, base_url='https://webhook.site/%s'),
+            call('POST', 'webhooks', {'callbackURL': 'https://webhook.site/%s?c=config' % uuid, 'idModel': 'cde'})
+        ]
+        self.assertEqual(t_pr.mock_calls, expected)
+        # Remove the temporary file
+        os.close(temp_fd)
+        os.remove(temp_webhook_file)
+
+    @patch("syncboom.is_production_environment")
+    @patch("syncboom.perform_request")
+    def test_new_webhook_prod(self, t_pr, s_ipe):
+        """
+        Test creating a new webhook, Prod mode
+        """
+        target.config = {"master_board": "cde"}
+        s_ipe.return_value = True
+        t_pr.return_value = {}
         target.new_webhook()
         expected = [
-            call('GET', 'token/749119d4-320f-43e9-aaf0-bcae85cfe9c5', base_url='https://webhook.site/%s'),
-            call('POST', 'webhooks', {'callbackURL': 'https://webhook.site/04b7baf0-1a59-41e2-b41a-245abeabc847?c=config', 'idModel': 'cde'})
+            call('POST', 'webhooks', {'callbackURL': 'https://syncboom.com/webhooks/1/?c=config', 'idModel': 'cde'})
         ]
         self.assertEqual(t_pr.mock_calls, expected)
 
