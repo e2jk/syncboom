@@ -28,16 +28,16 @@ def makeNewMappingForm(obj, num_map_labelN_lists):
         description = TextAreaField(_l('Mapping description (optional)'))
         m_type = RadioField(_l('Type of mapping'),
             description=_l('An "Automatic" mapping will run each time any card ' \
-                'on the master board is modified, while a "Manual" mapping ' \
+                'on the main board is modified, while a "Manual" mapping ' \
                 'will need to be run each time from the home page.'),
             choices=[("automatic", "Automatic"), ("manual", "Manual")],
             default='automatic',
             validators=[DataRequired()])
-        master_board = SelectField(_l('Master board'), coerce=str)
+        main_board = SelectField(_l('Main board'), coerce=str)
         labels = MultiCheckboxField(_l('Which labels need mapping?'), \
             coerce=str, render_kw={'style':'height: auto; list-style: none;'})
 
-        def validate_master_board(form, field):
+        def validate_main_board(form, field):
             if not form.labels.choices:
                 raise ValidationError(_l('None of the labels on this board have '
                     'names. Only named labels can be selected for mapping.'))
@@ -59,7 +59,7 @@ class DeleteMappingForm(FlaskForm):
 
 
 class RunMappingForm(FlaskForm):
-    submit_board = SubmitField(_l('Process the entire master board'))
+    submit_board = SubmitField(_l('Process the entire main board'))
     lists = SelectField(_l('List'), coerce=str,
         validators=[Regexp("^[0-9a-fA-F]{24}$",
         message=_l('Invalid Trello list ID format, it must be a 24 character string.'))])

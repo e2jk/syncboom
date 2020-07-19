@@ -79,15 +79,15 @@ def new_or_edit(mapping_id=None):
     step = 1
     selected_labels = []
     if request.method == 'POST' or mapping_id:
-        use_default_master_board = False
-        form.master_board.choices = [(b["id"], b["name"]) for b in boards]
-        # TODO (#74): show error message if form.master_board.choices is empty
-        if not form.master_board.data:
-            use_default_master_board = True
-            form.master_board.data = form.master_board.choices[0][0]
+        use_default_main_board = False
+        form.main_board.choices = [(b["id"], b["name"]) for b in boards]
+        # TODO (#74): show error message if form.main_board.choices is empty
+        if not form.main_board.data:
+            use_default_main_board = True
+            form.main_board.data = form.main_board.choices[0][0]
         labels_names = {}
         labels = perform_request("GET", "boards/%s/labels" % \
-            form.master_board.data,
+            form.main_board.data,
             key=current_app.config['TRELLO_API_KEY'],
             token=current_user.trello_token)
         form.labels.choices = [(l["id"], l["name"]) for l in labels if l["name"]]
@@ -105,8 +105,8 @@ def new_or_edit(mapping_id=None):
             step = 2
         # If the first step cleared, go on to check elements from the second step
         if step == 2:
-            if not use_default_master_board and \
-                re.match("^[0-9a-fA-F]{24}$", form.master_board.data):
+            if not use_default_main_board and \
+                re.match("^[0-9a-fA-F]{24}$", form.main_board.data):
                 # Go to next step
                 step = 3
         # If the second step cleared, go on to check elements from the third step
@@ -147,7 +147,7 @@ def new_or_edit(mapping_id=None):
                 mapping.name = form.name.data
                 mapping.description=form.description.data
                 mapping.m_type=form.m_type.data
-                mapping.master_board=form.master_board.data
+                mapping.main_board=form.main_board.data
                 mapping.destination_lists = json.dumps(destination_lists)
                 mapping.user_id = current_user.id
                 flash(_('Your mapping "%(name)s" has been updated.', name=mapping.name))
@@ -156,7 +156,7 @@ def new_or_edit(mapping_id=None):
                     name=form.name.data,
                     description=form.description.data,
                     m_type=form.m_type.data,
-                    master_board=form.master_board.data,
+                    main_board=form.main_board.data,
                     destination_lists = json.dumps(destination_lists),
                     user_id = current_user.id)
                 current_user.mappings.append(mapping)
@@ -191,7 +191,7 @@ def new_or_edit(mapping_id=None):
 
     # Remove fields from later steps
     if step < 2:
-        del form.master_board
+        del form.main_board
     if step < 3:
         del form.labels
     if step < 4:
@@ -266,7 +266,7 @@ def run(mapping_id):
         return redirect(url_for('mapping.run', mapping_id=mapping_id))
 
     rmf = RunMappingForm()
-    lists = perform_request("GET", "boards/%s/lists" % mapping.master_board,
+    lists = perform_request("GET", "boards/%s/lists" % mapping.main_board,
         key=current_app.config['TRELLO_API_KEY'],
         token=current_user.trello_token)
     rmf.lists.choices = [(l["id"], l["name"]) for l in lists]
@@ -289,8 +289,8 @@ def run(mapping_id):
         rmf.validate_on_submit()
         if rmf.submit_board.data:
             current_user.launch_task('run_mapping',
-                (mapping.id, "board", mapping.master_board),
-                _('Processing the full "%(mapping_name)s" master board...',
+                (mapping.id, "board", mapping.main_board),
+                _('Processing the full "%(mapping_name)s" main board...',
                     mapping_name=mapping.name))
         if rmf.submit_list.data and rmf.lists.validate(rmf):
             current_user.launch_task('run_mapping',
