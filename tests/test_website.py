@@ -451,7 +451,7 @@ class TaskCase(WebsiteTestCase):
         self.assertEqual(cm.output, expected_logging)
 
     @patch("app.tasks._set_task_progress")
-    @patch("app.tasks.process_master_card")
+    @patch("app.tasks.process_main_card")
     @patch("app.tasks.perform_request")
     def test_run_mapping_vm_valid_args_card(self, atpr, atpmc, atstp):
         u = User(username='john', email='john@example.com', trello_token="b2"*16)
@@ -476,16 +476,16 @@ class TaskCase(WebsiteTestCase):
             run_mapping(m.id, "card", "abc")
         expected_calls = [call('GET', 'cards/abc', key="a1"*16, token="b2"*16)]
         self.assertEqual(atpr.mock_calls, expected_calls)
-        expected_logging = "INFO:app:Processing master card 1/1 - Card name"
+        expected_logging = "INFO:app:Processing main card 1/1 - Card name"
         self.assertEqual(cm.output[1], expected_logging)
         self.assertTrue(list(atpmc.call_args[0][1].keys()),
             ['destination_lists', 'key', 'token'])
-        expected_call = call(100, 'Run complete. Processed 1 master cards (' \
-            'of which 1 active) that have 2 slave cards (of which 3 new).')
+        expected_call = call(100, 'Run complete. Processed 1 main cards (' \
+            'of which 1 active) that have 2 subordinate cards (of which 3 new).')
         self.assertEqual(atstp.mock_calls[-1], expected_call)
 
     @patch("app.tasks._set_task_progress")
-    @patch("app.tasks.process_master_card")
+    @patch("app.tasks.process_main_card")
     @patch("app.tasks.perform_request")
     def test_run_mapping_vm_valid_args_list(self, atpr, atpmc, atstp):
         u = User(username='john', email='john@example.com', trello_token="b2"*16)
@@ -511,15 +511,15 @@ class TaskCase(WebsiteTestCase):
         expected_calls = [call('GET', 'list/def/cards', key="a1"*16, token="b2"*16)]
         self.assertEqual(atpr.mock_calls, expected_calls)
         expected_logging = ['INFO:app:Starting task for mapping 1, list def',
-            'INFO:app:Processing master card 1/2 - Card name',
-            'INFO:app:Processing master card 2/2 - Second card',
+            'INFO:app:Processing main card 1/2 - Card name',
+            'INFO:app:Processing main card 2/2 - Second card',
             'INFO:app:Completed task for mapping 1, list def']
         self.assertEqual(cm.output, expected_logging)
         expected_calls = [call(0),
             call(0, 'Job running... Processing 2 cards.'),
             call(50),
-            call(100, 'Run complete. Processed 2 master cards (of which 11 ' \
-                'active) that have 13 slave cards (of which 15 new).')]
+            call(100, 'Run complete. Processed 2 main cards (of which 11 ' \
+                'active) that have 13 subordinate cards (of which 15 new).')]
         self.assertEqual(atstp.mock_calls, expected_calls)
 
     @patch("app.tasks._set_task_progress")
@@ -858,7 +858,7 @@ class MainCase(WebsiteTestCase):
         expected_content = [
         '<title>Welcome - SyncBoom</title>',
         '<h1 class="display-4">Welcome to SyncBoom!</h1>',
-        'SyncBoom enables you to "push" cards from one Master Trello board '\
+        'SyncBoom enables you to "push" cards from one Main Trello board '\
             'onto one or multiple destination lists.']
         for ec in expected_content:
             self.assertIn(str.encode(ec), response.data)
@@ -1215,7 +1215,7 @@ class MappingCase(WebsiteTestCase):
         m = Mapping(name=mapping_name,
             description = "Mapping description for %s" % mapping_name,
             m_type = "automatic",
-            master_board = "a"*24,
+            main_board = "a"*24,
             destination_lists=dl
         )
         u.mappings.append(m)
@@ -1296,7 +1296,7 @@ class MappingCase(WebsiteTestCase):
             '<h1>Run mapping &#34;abc&#34;</h1>',
             'Would you like to:<br/><br/>',
             '<input class="btn btn-secondary btn-md" id="submit_board" name="' \
-                'submit_board" type="submit" value="Process the entire master board">',
+                'submit_board" type="submit" value="Process the entire main board">',
             '<select class="form-control" id="lists" name="lists"><option ' \
                 'value="123">hij</option><option value="%s">klm</option>' \
                 '</select>' % ("a"*24),
@@ -1321,14 +1321,14 @@ class MappingCase(WebsiteTestCase):
             'in progress, please wait...</div>'
         self.assertIn(str.encode(ec), response.data)
 
-        # POST entire master board
+        # POST entire main board
         amrcu.get_task_in_progress.return_value = False
         response = self.client.post("/mapping/%d" % m.id,
             data=dict(submit_board="submit_board"))
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.headers["Location"], "http://localhost/")
         expected_call = call.launch_task('run_mapping', (1, 'board', "a"*24),
-            'Processing the full "abc" master board...')
+            'Processing the full "abc" main board...')
         self.assertEqual(amrcu.mock_calls[-1], expected_call)
 
         # POST list
@@ -1374,7 +1374,7 @@ class MappingCase(WebsiteTestCase):
     def get_data_step_valid(self):
         ds1ok = dict(name="Mapping name",
             description="Nice description")
-        ds2ok = dict(ds1ok, master_board="a"*24)
+        ds2ok = dict(ds1ok, main_board="a"*24)
         ds3ok = dict(ds2ok, labels="b"*24)
         ds4ok = dict(ds3ok, map_label0_lists="e"*24)
         return ds1ok, ds2ok, ds3ok, ds4ok
@@ -1441,8 +1441,8 @@ class MappingCase(WebsiteTestCase):
             '<input class="form-check-input" id="m_type-1" name="m_type" ' \
                 'type="radio" value="manual"> Manual',
             '<textarea class="form-control" id="description" name="description">'
-            '<select class="form-control" id="master_board" ' \
-                'name="master_board"><option',
+            '<select class="form-control" id="main_board" ' \
+                'name="main_board"><option',
         ]
         # Test no boards at all
         self.retrieve_and_check("GET", "/mapping/new", 200, expected_content,
@@ -1490,8 +1490,8 @@ class MappingCase(WebsiteTestCase):
         unexpected_content = [
             '<title>New mapping, Step 2/4 - SyncBoom</title>',
             '<h1>New mapping, Step 2/4</h1>',
-            '<select class="form-control" id="master_board" ' \
-                'name="master_board"><option',
+            '<select class="form-control" id="main_board" ' \
+                'name="main_board"><option',
         ]
         self.retrieve_and_check("GET", "/mapping/new", 200, expected_content,
             unexpected_content)
@@ -1521,22 +1521,22 @@ class MappingCase(WebsiteTestCase):
         self.retrieve_and_check("POST", "/mapping/new", 200, expected_content,
             unexpected_content, data=ds1ok)
 
-        # POST step 2, invalid master_board, no specific error message
+        # POST step 2, invalid main_board, no specific error message
         expected_content = ['<title>New mapping, Step 2/4 - SyncBoom' \
                 '</title>',
             '<h1>New mapping, Step 2/4</h1>',
         ]
         self.retrieve_and_check("POST", "/mapping/new", 200, expected_content,
-            unexpected_content, data=dict(ds1ok, master_board="c"))
+            unexpected_content, data=dict(ds1ok, main_board="c"))
 
-        # POST step 2, valid master_board, which has no named labels
+        # POST step 2, valid main_board, which has no named labels
         expected_content = ['<title>New mapping, Step 2/4 - SyncBoom' \
                 '</title>',
             '<div class="invalid-feedback">None of the labels on this board have ' \
                 'names. Only named labels can be selected for mapping.</div>',
         ]
         self.retrieve_and_check("POST", "/mapping/new", 200, expected_content,
-            unexpected_content, data=dict(ds1ok, master_board="c"))
+            unexpected_content, data=dict(ds1ok, main_board="c"))
 
         # POST step 2, valid data
         expected_content = unexpected_content
@@ -1628,8 +1628,8 @@ class MappingCase(WebsiteTestCase):
             '<input class="form-check-input" id="m_type-1" name="m_type" ' \
                 'type="radio" value="manual"> Manual',
             # Elements from step 2
-            '<select class="form-control" id="master_board" ' \
-                'name="master_board"><option',
+            '<select class="form-control" id="main_board" ' \
+                'name="main_board"><option',
             # Elements from step 3
             '<label class="form-control-label" for="labels">Which labels need ' \
                 'mapping?</label>',

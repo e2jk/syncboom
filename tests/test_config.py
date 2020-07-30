@@ -134,7 +134,7 @@ Exiting...
            ID             |  Name
 mmmmmmmmmmmmmmmmmmmmmmmm  |  Board One
 cccccccccccccccccccccccc  |  Board Two
-Enter your master board ID ('q' to quit):\u0020
+Enter your main board ID ('q' to quit):\u0020
 Exiting...
 """
         expected_exception_code = 37
@@ -151,8 +151,8 @@ Exiting...
            ID             |  Name
 mmmmmmmmmmmmmmmmmmmmmmmm  |  Board One
 cccccccccccccccccccccccc  |  Board Two
-Enter your master board ID ('q' to quit):\u0020
-Invalid board ID, must be 24 characters. Enter your master board ID ('q' to quit):\u0020
+Enter your main board ID ('q' to quit):\u0020
+Invalid board ID, must be 24 characters. Enter your main board ID ('q' to quit):\u0020
 Exiting...
 """
         expected_exception_code = 37
@@ -169,8 +169,8 @@ Exiting...
            ID             |  Name
 mmmmmmmmmmmmmmmmmmmmmmmm  |  Board One
 cccccccccccccccccccccccc  |  Board Two
-Enter your master board ID ('q' to quit):\u0020
-This is not the ID of one of the boards you have access to. Enter your master board ID ('q' to quit):\u0020
+Enter your main board ID ('q' to quit):\u0020
+This is not the ID of one of the boards you have access to. Enter your main board ID ('q' to quit):\u0020
 Exiting...
 """
         expected_exception_code = 37
@@ -187,7 +187,7 @@ Exiting...
            ID             |  Name
 mmmmmmmmmmmmmmmmmmmmmmmm  |  Board One
 cccccccccccccccccccccccc  |  Board Two
-Enter your master board ID ('q' to quit):\u0020
+Enter your main board ID ('q' to quit):\u0020
 Enter a name for this new configuration ('q' to quit):\u0020
 Exiting...
 """
@@ -475,7 +475,7 @@ New configuration saved to file 'data/config_config-name.json'
         self.assertEqual(target.config["name"], vals[3])
         self.assertEqual(target.config["key"], vals[0])
         self.assertEqual(target.config["token"], vals[1])
-        self.assertEqual(target.config["master_board"], vals[2])
+        self.assertEqual(target.config["main_board"], vals[2])
         self.assertEqual(len(target.config["destination_lists"]), 2)
         self.assertEqual(len(target.config["destination_lists"]["Label One"]), 1)
         self.assertEqual(target.config["destination_lists"]["Label One"][0], vals[5])
@@ -502,7 +502,7 @@ New configuration saved to file 'data/config_config-name.json'
         self.assertEqual(target.config["name"], vals[3])
         self.assertEqual(target.config["key"], vals[0])
         self.assertEqual(target.config["token"], vals[1])
-        self.assertEqual(target.config["master_board"], vals[2])
+        self.assertEqual(target.config["main_board"], vals[2])
         self.assertEqual(len(target.config["destination_lists"]), 2)
         self.assertEqual(len(target.config["destination_lists"]["Label One"]), 2)
         self.assertEqual(len(target.config["destination_lists"]["Label Three"]), 1)
@@ -519,7 +519,7 @@ class TestLoadConfig(unittest.TestCase):
         self.assertEqual(target.config["name"], "Sample configuration")
         self.assertEqual(target.config["key"], "abc")
         self.assertEqual(target.config["token"], "def")
-        self.assertEqual(target.config["master_board"], "ghi")
+        self.assertEqual(target.config["main_board"], "ghi")
         self.assertEqual(len(target.config["destination_lists"]), 3)
         self.assertEqual(len(target.config["destination_lists"]["Label One"]), 1)
         self.assertEqual(target.config["destination_lists"]["Label One"][0], "a1a1a1a1a1a1a1a1a1a1a1a1")

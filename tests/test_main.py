@@ -72,15 +72,15 @@ class TestOutputSummary(FlaskTestCase):
             "propagate": True,
             "cleanup": False,
             "dry_run": False})()
-        summary = {"master_cards": 4,
-            "active_master_cards": 2,
-            "slave_card": 3,
-            "new_slave_card": 1}
+        summary = {"main_cards": 4,
+            "active_main_cards": 2,
+            "subordinate_card": 3,
+            "new_subordinate_card": 1}
         with self.assertLogs(level='INFO') as cm:
             target.output_summary(args, summary)
         self.assertEqual(cm.output, [
             "INFO:root:================================================================",
-            "INFO:root:Summary: processed 4 master cards (of which 2 active) that have 3 slave cards (of which 1 new)."])
+            "INFO:root:Summary: processed 4 main cards (of which 2 active) that have 3 subordinate cards (of which 1 new)."])
 
     def test_output_summary_propagate_dry_run(self):
         """
@@ -90,15 +90,15 @@ class TestOutputSummary(FlaskTestCase):
             "propagate": True,
             "cleanup": False,
             "dry_run": True})()
-        summary = {"master_cards": 4,
-            "active_master_cards": 2,
-            "slave_card": 3,
-            "new_slave_card": 1}
+        summary = {"main_cards": 4,
+            "active_main_cards": 2,
+            "subordinate_card": 3,
+            "new_subordinate_card": 1}
         with self.assertLogs(level='INFO') as cm:
             target.output_summary(args, summary)
         self.assertEqual(cm.output, [
             "INFO:root:================================================================",
-            "INFO:root:Summary [DRY RUN]: processed 4 master cards (of which 2 active) that have 3 slave cards (of which 1 would have been new)."])
+            "INFO:root:Summary [DRY RUN]: processed 4 main cards (of which 2 active) that have 3 subordinate cards (of which 1 would have been new)."])
 
     def test_output_summary_cleanup(self):
         """
@@ -108,15 +108,15 @@ class TestOutputSummary(FlaskTestCase):
             "propagate": False,
             "cleanup": True,
             "dry_run": False})()
-        summary = {"cleaned_up_master_cards": 4,
-            "deleted_slave_cards": 6,
+        summary = {"cleaned_up_main_cards": 4,
+            "deleted_subordinate_cards": 6,
             "erased_destination_boards": 2,
             "erased_destination_lists": 2}
         with self.assertLogs(level='INFO') as cm:
             target.output_summary(args, summary)
         self.assertEqual(cm.output, [
             "INFO:root:================================================================",
-            "INFO:root:Summary: cleaned up 4 master cards and deleted 6 slave cards from 2 slave boards/2 slave lists."])
+            "INFO:root:Summary: cleaned up 4 main cards and deleted 6 subordinate cards from 2 subordinate boards/2 subordinate lists."])
 
     def test_output_summary_cleanup_dry_run(self):
         """
@@ -126,15 +126,15 @@ class TestOutputSummary(FlaskTestCase):
             "propagate": False,
             "cleanup": True,
             "dry_run": True})()
-        summary = {"cleaned_up_master_cards": 4,
-            "deleted_slave_cards": 6,
+        summary = {"cleaned_up_main_cards": 4,
+            "deleted_subordinate_cards": 6,
             "erased_destination_boards": 2,
             "erased_destination_lists": 2}
         with self.assertLogs(level='INFO') as cm:
             target.output_summary(args, summary)
         self.assertEqual(cm.output, [
             "INFO:root:================================================================",
-            "INFO:root:Summary [DRY RUN]: would have cleaned up 4 master cards and deleted 6 slave cards from 2 slave boards/2 slave lists."])
+            "INFO:root:Summary [DRY RUN]: would have cleaned up 4 main cards and deleted 6 subordinate cards from 2 subordinate boards/2 subordinate lists."])
 
     def test_output_summary_new_config(self):
         """
@@ -230,17 +230,17 @@ class TestCleanupTestBoards(FlaskTestCase):
                 ]
             },
             "cleanup_boards": ["r"*24]}
-        master_cards = []
+        main_cards = []
         t_pr.return_value = {"id": "q"*24}
         with self.assertRaises(SystemExit) as cm1, self.assertLogs(level='CRITICAL') as cm2:
-            summary = target.cleanup_test_boards(master_cards)
+            summary = target.cleanup_test_boards(main_cards)
         self.assertEqual(cm1.exception.code, 44)
         self.assertEqual(cm2.output, ["CRITICAL:root:This board qqqqqqqqqqqqqqqqqqqqqqqq is not whitelisted to be cleaned up. See the `cleanup_boards` section in the config file. Exiting..."])
 
     @patch("syncboom.perform_request")
     def test_cleanup_test_boards_none(self, t_pr):
         """
-        Test cleaning up the test boards when there is no master card and no cards on the slave lists
+        Test cleaning up the test boards when there is no main card and no cards on the subordinate lists
         """
         target.config = {"token": "jkl",
             "destination_lists": {
@@ -252,7 +252,7 @@ class TestCleanupTestBoards(FlaskTestCase):
                 ]
             },
             "cleanup_boards": ["q"*24]}
-        master_cards = []
+        main_cards = []
         t_pr.side_effect = [
             {"id": "q"*24},
             [{"id": "aaa"}, {"id": "ddd"}],
@@ -265,13 +265,13 @@ class TestCleanupTestBoards(FlaskTestCase):
             {"name": "Destination list name 2"},
             []]
         with self.assertLogs(level='DEBUG') as cm:
-            summary = target.cleanup_test_boards(master_cards)
-        self.assertEqual(summary, {"cleaned_up_master_cards": 0,
-            "deleted_slave_cards": 0,
+            summary = target.cleanup_test_boards(main_cards)
+        self.assertEqual(summary, {"cleaned_up_main_cards": 0,
+            "deleted_subordinate_cards": 0,
             "erased_destination_boards": 0,
             "erased_destination_lists": 0})
-        expected = ["DEBUG:root:Removing slave cards attachments on the master cards",
-            "DEBUG:root:Deleting slave cards",
+        expected = ["DEBUG:root:Removing subordinate cards attachments on the main cards",
+            "DEBUG:root:Deleting subordinate cards",
             "DEBUG:root:================================================================",
             "DEBUG:root:Retrieve cards from list Destination board name 1|Destination list name 1 (list 1/2)",
             "DEBUG:root:[]",
@@ -285,7 +285,7 @@ class TestCleanupTestBoards(FlaskTestCase):
     @patch("syncboom.perform_request")
     def test_cleanup_test_boards_no_mc_yes_sc(self, t_pr):
         """
-        Test cleaning up the test boards when there is no master card and cards on the slave lists
+        Test cleaning up the test boards when there is no main card and cards on the subordinate lists
         """
         target.config = {"token": "jkl",
             "destination_lists": {
@@ -297,7 +297,7 @@ class TestCleanupTestBoards(FlaskTestCase):
                 ]
             },
             "cleanup_boards": ["q"*24]}
-        master_cards = []
+        main_cards = []
         t_pr.side_effect = [
             {"id": "q"*24},
             [{"id": "aaa"}, {"id": "ddd"}],
@@ -312,29 +312,29 @@ class TestCleanupTestBoards(FlaskTestCase):
             [{"id": "j"*24}],
             {}]
         with self.assertLogs(level='DEBUG') as cm:
-            summary = target.cleanup_test_boards(master_cards)
-        self.assertEqual(summary, {"cleaned_up_master_cards": 0,
-            "deleted_slave_cards": 2,
+            summary = target.cleanup_test_boards(main_cards)
+        self.assertEqual(summary, {"cleaned_up_main_cards": 0,
+            "deleted_subordinate_cards": 2,
             "erased_destination_boards": 2,
             "erased_destination_lists": 2})
-        expected = ["DEBUG:root:Removing slave cards attachments on the master cards",
-            "DEBUG:root:Deleting slave cards",
+        expected = ["DEBUG:root:Removing subordinate cards attachments on the main cards",
+            "DEBUG:root:Deleting subordinate cards",
             "DEBUG:root:================================================================",
             "DEBUG:root:Retrieve cards from list Destination board name 1|Destination list name 1 (list 1/2)",
             "DEBUG:root:[{'id': 'uuuuuuuuuuuuuuuuuuuuuuuu'}]",
             "DEBUG:root:List Destination board name 1/Destination list name 1 has 1 cards to delete",
-            "DEBUG:root:Deleting slave card uuuuuuuuuuuuuuuuuuuuuuuu",
+            "DEBUG:root:Deleting subordinate card uuuuuuuuuuuuuuuuuuuuuuuu",
             "DEBUG:root:================================================================",
             "DEBUG:root:Retrieve cards from list Destination board name 2|Destination list name 2 (list 2/2)",
             "DEBUG:root:[{'id': 'jjjjjjjjjjjjjjjjjjjjjjjj'}]",
             "DEBUG:root:List Destination board name 2/Destination list name 2 has 1 cards to delete",
-            "DEBUG:root:Deleting slave card jjjjjjjjjjjjjjjjjjjjjjjj"]
+            "DEBUG:root:Deleting subordinate card jjjjjjjjjjjjjjjjjjjjjjjj"]
         self.assertEqual(cm.output, expected)
 
     @patch("syncboom.perform_request")
-    def test_cleanup_test_boards_master_card_no_attach(self, t_pr):
+    def test_cleanup_test_boards_main_card_no_attach(self, t_pr):
         """
-        Test cleaning up the test boards with a master card without attachment
+        Test cleaning up the test boards with a main card without attachment
         """
         target.config = {"token": "jkl",
             "destination_lists": {
@@ -346,7 +346,7 @@ class TestCleanupTestBoards(FlaskTestCase):
                 ]
             },
             "cleanup_boards": ["q"*24]}
-        master_cards = [{"id": "t"*24, "desc": "abc", "name": "Card name",
+        main_cards = [{"id": "t"*24, "desc": "abc", "name": "Card name",
             "badges": {"attachments": 0}}]
         t_pr.side_effect = [
             [],
@@ -361,16 +361,16 @@ class TestCleanupTestBoards(FlaskTestCase):
             {"name": "Destination list name 2"},
             []]
         with self.assertLogs(level='DEBUG') as cm:
-            summary = target.cleanup_test_boards(master_cards)
-        self.assertEqual(summary, {"cleaned_up_master_cards": 0,
-            "deleted_slave_cards": 0,
+            summary = target.cleanup_test_boards(main_cards)
+        self.assertEqual(summary, {"cleaned_up_main_cards": 0,
+            "deleted_subordinate_cards": 0,
             "erased_destination_boards": 0,
             "erased_destination_lists": 0})
-        expected = ["DEBUG:root:Removing slave cards attachments on the master cards",
+        expected = ["DEBUG:root:Removing subordinate cards attachments on the main cards",
             "DEBUG:root:================================================================",
-            "INFO:root:Cleaning up master card 1/1 - Card name",
+            "INFO:root:Cleaning up main card 1/1 - Card name",
             "DEBUG:root:Retrieving checklists from card tttttttttttttttttttttttt",
-            "DEBUG:root:Deleting slave cards",
+            "DEBUG:root:Deleting subordinate cards",
             "DEBUG:root:================================================================",
             "DEBUG:root:Retrieve cards from list Destination board name 1|Destination list name 1 (list 1/2)",
             "DEBUG:root:[]",
@@ -382,9 +382,9 @@ class TestCleanupTestBoards(FlaskTestCase):
         self.assertEqual(cm.output, expected)
 
     @patch("syncboom.perform_request")
-    def test_cleanup_test_boards_master_card_attach(self, t_pr):
+    def test_cleanup_test_boards_main_card_attach(self, t_pr):
         """
-        Test cleaning up the test boards with a master card with related attachment
+        Test cleaning up the test boards with a main card with related attachment
         """
         target.config = {"token": "jkl",
             "destination_lists": {
@@ -396,7 +396,7 @@ class TestCleanupTestBoards(FlaskTestCase):
                 ]
             },
             "cleanup_boards": ["q"*24]}
-        master_cards = [{"id": "t"*24, "desc": "abc", "name": "Card name",
+        main_cards = [{"id": "t"*24, "desc": "abc", "name": "Card name",
             "badges": {"attachments": 1}}]
         t_pr.side_effect = [
             [{"id": "a"*24, "url": "https://trello.com/c/eoK0Rngb/blablabla"}],
@@ -414,19 +414,19 @@ class TestCleanupTestBoards(FlaskTestCase):
             {"name": "Destination list name 2"},
             []]
         with self.assertLogs(level='DEBUG') as cm:
-            summary = target.cleanup_test_boards(master_cards)
-        self.assertEqual(summary, {"cleaned_up_master_cards": 1,
-            "deleted_slave_cards": 0,
+            summary = target.cleanup_test_boards(main_cards)
+        self.assertEqual(summary, {"cleaned_up_main_cards": 1,
+            "deleted_subordinate_cards": 0,
             "erased_destination_boards": 0,
             "erased_destination_lists": 0})
-        expected = ["DEBUG:root:Removing slave cards attachments on the master cards",
+        expected = ["DEBUG:root:Removing subordinate cards attachments on the main cards",
             "DEBUG:root:================================================================",
-            "INFO:root:Cleaning up master card 1/1 - Card name",
-            "DEBUG:root:Getting 1 attachments on master card tttttttttttttttttttttttt",
-            "DEBUG:root:Deleting attachment aaaaaaaaaaaaaaaaaaaaaaaa from master card tttttttttttttttttttttttt",
+            "INFO:root:Cleaning up main card 1/1 - Card name",
+            "DEBUG:root:Getting 1 attachments on main card tttttttttttttttttttttttt",
+            "DEBUG:root:Deleting attachment aaaaaaaaaaaaaaaaaaaaaaaa from main card tttttttttttttttttttttttt",
             "DEBUG:root:Retrieving checklists from card tttttttttttttttttttttttt",
-            "DEBUG:root:Deleting checklist Involved Teams (bbbbbbbbbbbbbbbbbbbbbbbb) from master card tttttttttttttttttttttttt",
-            "DEBUG:root:Deleting slave cards",
+            "DEBUG:root:Deleting checklist Involved Teams (bbbbbbbbbbbbbbbbbbbbbbbb) from main card tttttttttttttttttttttttt",
+            "DEBUG:root:Deleting subordinate cards",
             "DEBUG:root:================================================================",
             "DEBUG:root:Retrieve cards from list Destination board name 1|Destination list name 1 (list 1/2)",
             "DEBUG:root:[]",
@@ -438,105 +438,105 @@ class TestCleanupTestBoards(FlaskTestCase):
         self.assertEqual(cm.output, expected)
 
 
-class TestUpdateMasterCardMetadata(FlaskTestCase):
+class TestUpdateMainCardMetadata(FlaskTestCase):
     @patch("syncboom.perform_request")
-    def test_update_master_card_metadata_both_none(self, t_pr):
+    def test_update_main_card_metadata_both_none(self, t_pr):
         """
         Test updating a card that had no metadata with empty metadata
         """
-        master_card = {"id": "1a2b3c", "desc": "abc"}
-        target.update_master_card_metadata(master_card, "")
+        main_card = {"id": "1a2b3c", "desc": "abc"}
+        target.update_main_card_metadata(main_card, "")
         # Confirm perform_request hasn't been called
         self.assertEqual(t_pr.mock_calls, [])
 
     @patch("syncboom.perform_request")
-    def test_update_master_card_metadata(self, t_pr):
+    def test_update_main_card_metadata(self, t_pr):
         """
         Test updating a card that had no metadata with new metadata
         """
-        master_card = {"id": "1a2b3c", "desc": "abc"}
+        main_card = {"id": "1a2b3c", "desc": "abc"}
         metadata = "jsdofhzpeh\nldjfozije"
-        target.update_master_card_metadata(master_card, metadata)
+        target.update_main_card_metadata(main_card, metadata)
         expected = [call('PUT', 'cards/1a2b3c',
             {'desc': 'abc\n\n--------------------------------\n*== DO NOT EDIT BELOW THIS LINE ==*\njsdofhzpeh\nldjfozije'})]
         self.assertEqual(t_pr.mock_calls, expected)
 
     @patch("syncboom.perform_request")
-    def test_update_master_card_metadata_empty(self, t_pr):
+    def test_update_main_card_metadata_empty(self, t_pr):
         """
         Test updating a card's that had metadata with empty metadata
         """
         main_desc = "abc"
         old_metadata = "old metadata"
-        master_card = {"id": "1a2b3c", "desc": "%s%s%s" % (main_desc, target.METADATA_SEPARATOR, old_metadata) }
-        target.update_master_card_metadata(master_card, "")
+        main_card = {"id": "1a2b3c", "desc": "%s%s%s" % (main_desc, target.METADATA_SEPARATOR, old_metadata) }
+        target.update_main_card_metadata(main_card, "")
         expected = [call('PUT', 'cards/1a2b3c', {'desc': main_desc})]
         self.assertEqual(t_pr.mock_calls, expected)
 
     @patch("syncboom.perform_request")
-    def test_update_master_card_metadata_both(self, t_pr):
+    def test_update_main_card_metadata_both(self, t_pr):
         """
         Test updating a card's that had metadata with new metadata
         """
         main_desc = "abc"
         old_metadata = "old metadata"
-        master_card = {"id": "1a2b3c", "desc": "%s%s%s" % (main_desc, target.METADATA_SEPARATOR, old_metadata) }
+        main_card = {"id": "1a2b3c", "desc": "%s%s%s" % (main_desc, target.METADATA_SEPARATOR, old_metadata) }
         new_metadata = "new metadata"
-        target.update_master_card_metadata(master_card, new_metadata)
+        target.update_main_card_metadata(main_card, new_metadata)
         expected = [call('PUT', 'cards/1a2b3c',
             {'desc': "%s%s%s" % (main_desc, target.METADATA_SEPARATOR, new_metadata)})]
         self.assertEqual(t_pr.mock_calls, expected)
 
     @patch("syncboom.perform_request")
-    def test_update_master_card_metadata_same(self, t_pr):
+    def test_update_main_card_metadata_same(self, t_pr):
         """
         Test updating a card's that had metadata with the same new metadata
         """
         main_desc = "abc"
         old_metadata = "old metadata"
-        master_card = {"id": "1a2b3c", "desc": "%s%s%s" % (main_desc, target.METADATA_SEPARATOR, old_metadata) }
-        target.update_master_card_metadata(master_card, old_metadata)
+        main_card = {"id": "1a2b3c", "desc": "%s%s%s" % (main_desc, target.METADATA_SEPARATOR, old_metadata) }
+        target.update_main_card_metadata(main_card, old_metadata)
         # Confirm perform_request hasn't been called
         self.assertEqual(t_pr.mock_calls, [])
 
 
-class TestSplitMasterCardMetadata(FlaskTestCase):
-    def test_split_master_card_metadata_no_metadata(self):
+class TestSplitMainCardMetadata(FlaskTestCase):
+    def test_split_main_card_metadata_no_metadata(self):
         """
-        Test splitting the master card description without metadata
+        Test splitting the main card description without metadata
         """
         full_desc = "ABC\nDEF"
-        (main_desc, current_metadata) = target.split_master_card_metadata(full_desc)
+        (main_desc, current_metadata) = target.split_main_card_metadata(full_desc)
         self.assertEqual(main_desc, full_desc)
         self.assertEqual(current_metadata, "")
 
-    def test_split_master_card_metadata_partially_broken_metadata(self):
+    def test_split_main_card_metadata_partially_broken_metadata(self):
         """
-        Test splitting the master card description with partially broken metadata
+        Test splitting the main card description with partially broken metadata
         """
         desc = "ABC\nDEFsldkjf"
         full_desc = "%s== DO NOT EDIT BELOW THIS LINEkhsfhizehf" % desc
-        (main_desc, current_metadata) = target.split_master_card_metadata(full_desc)
+        (main_desc, current_metadata) = target.split_main_card_metadata(full_desc)
         self.assertEqual(main_desc, desc + "== ")
         self.assertEqual(current_metadata, "")
 
-    def test_split_master_card_metadata_fully_broken_metadata(self):
+    def test_split_main_card_metadata_fully_broken_metadata(self):
         """
-        Test splitting the master card description with fully broken metadata
+        Test splitting the main card description with fully broken metadata
         """
         full_desc = "ABC\nDEFsldkjf\n== DO NOT EDIT BELOW THIS Lsfhizehf"
-        (main_desc, current_metadata) = target.split_master_card_metadata(full_desc)
+        (main_desc, current_metadata) = target.split_main_card_metadata(full_desc)
         self.assertEqual(main_desc, full_desc)
         self.assertEqual(current_metadata, "")
 
-    def test_split_master_card_metadata_valid_metadata(self):
+    def test_split_main_card_metadata_valid_metadata(self):
         """
-        Test splitting the master card description with valid metadata
+        Test splitting the main card description with valid metadata
         """
         desc = "ABC\nDEFsldkjf"
         metadata = "jsdofhzpeh\nldjfozije"
         full_desc = "%s%s%s" % (desc, target.METADATA_SEPARATOR, metadata)
-        (main_desc, current_metadata) = target.split_master_card_metadata(full_desc)
+        (main_desc, current_metadata) = target.split_main_card_metadata(full_desc)
         self.assertEqual(main_desc, desc)
         self.assertEqual(current_metadata, metadata)
 
@@ -639,24 +639,24 @@ class TestGetBoardNameFromList(FlaskTestCase):
         self.assertEqual(board_name, expected_name)
 
 
-class TestGenerateMasterCardMetadata(FlaskTestCase):
+class TestGenerateMainCardMetadata(FlaskTestCase):
     @patch("syncboom.perform_request")
-    def test_generate_master_card_metadata_no_slave_cards(self, t_pr):
+    def test_generate_main_card_metadata_no_subordinate_cards(self, t_pr):
         """
-        Test generating a master card's metadata that has no slave cards
+        Test generating a main card's metadata that has no subordinate cards
         """
-        slave_cards = []
-        new_master_card_metadata = target.generate_master_card_metadata(slave_cards)
+        subordinate_cards = []
+        new_main_card_metadata = target.generate_main_card_metadata(subordinate_cards)
         # Confirm perform_request hasn't been called
         self.assertEqual(t_pr.mock_calls, [])
-        self.assertEqual(new_master_card_metadata, "")
+        self.assertEqual(new_main_card_metadata, "")
 
     @patch("syncboom.perform_request")
-    def test_generate_master_card_metadata_no_slave_cards_uncached(self, t_pr):
+    def test_generate_main_card_metadata_no_subordinate_cards_uncached(self, t_pr):
         """
-        Test generating a master card's metadata that has 3 slave cards, uncached
+        Test generating a main card's metadata that has 3 subordinate cards, uncached
         """
-        slave_cards = [{"name": "name1", "idBoard": "idBoard1", "idList": "idList1"},
+        subordinate_cards = [{"name": "name1", "idBoard": "idBoard1", "idList": "idList1"},
                        {"name": "name2", "idBoard": "idBoard2", "idList": "idList2"},
                        {"name": "name3", "idBoard": "idBoard3", "idList": "idList3"}]
         t_pr.side_effect = [{"name": "record name1"},
@@ -665,7 +665,7 @@ class TestGenerateMasterCardMetadata(FlaskTestCase):
             {"name": "record name4"},
             {"name": "record name5"},
             {"name": "record name6"}]
-        new_master_card_metadata = target.generate_master_card_metadata(slave_cards)
+        new_main_card_metadata = target.generate_main_card_metadata(subordinate_cards)
         expected = [call('GET', 'board/idBoard1'),
             call('GET', 'list/idList1'),
             call('GET', 'board/idBoard2'),
@@ -674,7 +674,7 @@ class TestGenerateMasterCardMetadata(FlaskTestCase):
             call('GET', 'list/idList3')]
         self.assertEqual(t_pr.mock_calls, expected)
         expected = "\n- 'name1' on list '**record name1|record name2**'\n- 'name2' on list '**record name3|record name4**'\n- 'name3' on list '**record name5|record name6**'"
-        self.assertEqual(new_master_card_metadata, expected)
+        self.assertEqual(new_main_card_metadata, expected)
 
 
 class TestPerformRequest(FlaskTestCase):
@@ -871,20 +871,20 @@ class TestPerformRequest(FlaskTestCase):
         target.args = None
 
 
-class TestCreateNewSlaveCard(FlaskTestCase):
+class TestCreateNewSubordinateCard(FlaskTestCase):
     @patch("syncboom.perform_request")
-    def test_create_new_slave_card(self, t_pr):
+    def test_create_new_subordinate_card(self, t_pr):
         """
         Test creating a new card
         """
         target.config = {"token": "jkl"}
-        master_card = {"id": "1a2b3c", "desc": "abc", "shortUrl": "https://trello.com/c/eoK0Rngb"}
+        main_card = {"id": "1a2b3c", "desc": "abc", "shortUrl": "https://trello.com/c/eoK0Rngb"}
         destination_list = "a"*24
         t_pr.return_value = {"id": "b"*24}
-        card = target.create_new_slave_card(master_card, destination_list)
+        card = target.create_new_subordinate_card(main_card, destination_list)
         expected = [call('POST', 'cards',
             {'idList': 'aaaaaaaaaaaaaaaaaaaaaaaa',
-            'desc': 'abc\n\nCreated from master card https://trello.com/c/eoK0Rngb',
+            'desc': 'abc\n\nCreated from main card https://trello.com/c/eoK0Rngb',
             'pos': 'bottom', 'idCardSource': '1a2b3c',
             'keepFromSource': 'attachments,checklists,comments,due,stickers'})]
         self.assertEqual(t_pr.mock_calls, expected)
@@ -911,7 +911,7 @@ class TestNewWebhook(FlaskTestCase):
         """
         Test creating a new webhook
         """
-        target.config = {"master_board": "cde"}
+        target.config = {"main_board": "cde"}
         t_pr.return_value = {}
         target.new_webhook()
         print(t_pr.mock_calls)
@@ -939,7 +939,7 @@ class TestDeleteWebhook(FlaskTestCase):
         """
         Test deleting this board's webhook when no webhook exists
         """
-        target.config = {"token": "jkl", "master_board": "cde"}
+        target.config = {"token": "jkl", "main_board": "cde"}
         t_pr.return_value = {}
         webhooks = target.delete_webhook()
         expected = [call('GET', 'tokens/jkl/webhooks')]
@@ -950,8 +950,8 @@ class TestDeleteWebhook(FlaskTestCase):
         """
         Test deleting this board's webhook when there is one webhook for that board
         """
-        target.config = {"token": "jkl", "master_board": "cde"}
-        t_pr.side_effect = [[{"id": "kdfg", "idModel": target.config["master_board"]}], {}]
+        target.config = {"token": "jkl", "main_board": "cde"}
+        t_pr.side_effect = [[{"id": "kdfg", "idModel": target.config["main_board"]}], {}]
         webhooks = target.delete_webhook()
         expected = [call('GET', 'tokens/jkl/webhooks'),
             call('DELETE', 'webhooks/kdfg')]
@@ -962,7 +962,7 @@ class TestDeleteWebhook(FlaskTestCase):
         """
         Test deleting this board's webhook when there is one webhook but not for that board
         """
-        target.config = {"token": "jkl", "master_board": "this_board"}
+        target.config = {"token": "jkl", "main_board": "this_board"}
         t_pr.return_value = [{"id": "kdfg", "idModel": "other_board"}]
         webhooks = target.delete_webhook()
         expected = [call('GET', 'tokens/jkl/webhooks')]
@@ -973,7 +973,7 @@ class TestDeleteWebhook(FlaskTestCase):
         """
         Test deleting this board's webhook when there are multiple webhook including for that board
         """
-        target.config = {"token": "jkl", "master_board": "this_board"}
+        target.config = {"token": "jkl", "main_board": "this_board"}
         t_pr.return_value = [{"id": "kdfg1", "idModel": "other_board"},
             {"id": "kdfg2", "idModel": "yet_another_board"},
             {"id": "kdfg3", "idModel": "this_board"}]
@@ -987,7 +987,7 @@ class TestDeleteWebhook(FlaskTestCase):
         """
         Test deleting this board's webhook when there are multiple webhook including for that board
         """
-        target.config = {"token": "jkl", "master_board": "this_board"}
+        target.config = {"token": "jkl", "main_board": "this_board"}
         t_pr.return_value = [{"id": "kdfg1", "idModel": "other_board"},
             {"id": "kdfg2", "idModel": "yet_another_board"}]
         webhooks = target.delete_webhook()
@@ -1307,7 +1307,7 @@ class TestInitMain(FlaskTestCase):
         f = io.StringIO()
         with contextlib.redirect_stdout(f):
             target.init()
-        self.assertEqual(f.getvalue(), "WARNING: this will delete all cards on the slave lists. Type 'YES' to confirm, or 'q' to quit:\u0020\n")
+        self.assertEqual(f.getvalue(), "WARNING: this will delete all cards on the subordinate lists. Type 'YES' to confirm, or 'q' to quit:\u0020\n")
         self.assertEqual(t_ctb.mock_calls[0], call([{'id': 'aaaaaaaaaaaaaaaaaaaaaaaa'}, {'id': 'bbbbbbbbbbbbbbbbbbbbbbbb'}]))
 
     @patch("syncboom.perform_request")
@@ -1328,8 +1328,8 @@ class TestInitMain(FlaskTestCase):
         # Validate which config file was used and last output line (summary)
         self.assertTrue("DEBUG:root:Loading configuration data/sample_config.json" in cm2.output)
         self.assertTrue("DEBUG:root:{'name': 'Sample configuration'" in cm2.output[-1])
-        expected_output = """WARNING: this will delete all cards on the slave lists. Type 'YES' to confirm, or 'q' to quit:\u0020
-WARNING: this will delete all cards on the slave lists. Type 'YES' to confirm, or 'q' to quit:\u0020
+        expected_output = """WARNING: this will delete all cards on the subordinate lists. Type 'YES' to confirm, or 'q' to quit:\u0020
+WARNING: this will delete all cards on the subordinate lists. Type 'YES' to confirm, or 'q' to quit:\u0020
 Exiting...
 """
         self.assertEqual(f.getvalue(), expected_output)
@@ -1369,53 +1369,53 @@ Exiting...
             target.init()
         self.assertEqual(cm1.exception.code, 35)
 
-    @patch("syncboom.process_master_card")
+    @patch("syncboom.process_main_card")
     @patch("syncboom.perform_request")
     def test_init_propagate_empty(self, t_pr, t_pmc):
         """
-        Test the initialization code with --propagate with a single non-relevant master card
+        Test the initialization code with --propagate with a single non-relevant main card
         """
         target.__name__ = "__main__"
         target.sys.argv = ["scriptname.py", "--propagate", "--config", "data/sample_config.json"]
-        t_pr.side_effect = [[{"id": "a"*24, "name": "Master card name", "labels": {}, "badges": {"attachments": 0}, "desc": "Desc"}]]
+        t_pr.side_effect = [[{"id": "a"*24, "name": "Main card name", "labels": {}, "badges": {"attachments": 0}, "desc": "Desc"}]]
         t_pmc.return_value = (20, 30, 40)
         with self.assertLogs(level='DEBUG') as cm:
             target.init()
         self.assertEqual(len(t_pmc.mock_calls), 1)
-        self.assertEqual(t_pmc.mock_calls[0], call({'id': 'aaaaaaaaaaaaaaaaaaaaaaaa', 'name': 'Master card name', 'labels': {}, 'badges': {'attachments': 0}, 'desc': 'Desc'}))
-        self.assertTrue("INFO:root:Summary: processed 1 master cards (of which 20 active) that have 30 slave cards (of which 40 new)." in cm.output)
+        self.assertEqual(t_pmc.mock_calls[0], call({'id': 'aaaaaaaaaaaaaaaaaaaaaaaa', 'name': 'Main card name', 'labels': {}, 'badges': {'attachments': 0}, 'desc': 'Desc'}))
+        self.assertTrue("INFO:root:Summary: processed 1 main cards (of which 20 active) that have 30 subordinate cards (of which 40 new)." in cm.output)
 
     @patch("syncboom.perform_request")
     def test_init_propagate_list_invalid(self, t_pr):
         """
-        Test the initialization code with --propagate and --list that's not on the master board
+        Test the initialization code with --propagate and --list that's not on the main board
         """
         target.__name__ = "__main__"
         target.sys.argv = ["scriptname.py", "--propagate", "--config", "data/sample_config.json", "--list", "b2"*12]
         with self.assertRaises(SystemExit) as cm1, self.assertLogs(level='DEBUG') as cm2:
             target.init()
         self.assertEqual(cm1.exception.code, 32)
-        self.assertTrue("CRITICAL:root:List b2b2b2b2b2b2b2b2b2b2b2b2 is not on the master board ghi. Exiting..." in cm2.output)
+        self.assertTrue("CRITICAL:root:List b2b2b2b2b2b2b2b2b2b2b2b2 is not on the main board ghi. Exiting..." in cm2.output)
 
-    @patch("syncboom.process_master_card")
+    @patch("syncboom.process_main_card")
     @patch("syncboom.perform_request")
     def test_init_propagate_list(self, t_pr, t_pmc):
         """
-        Test the initialization code with --propagate and --list that's on the master board, then a single non-relevant master card
+        Test the initialization code with --propagate and --list that's on the main board, then a single non-relevant main card
         """
         target.__name__ = "__main__"
         target.sys.argv = ["scriptname.py", "--propagate", "--config", "data/sample_config.json", "--list", "c3"*12]
         t_pr.side_effect = [
             [{"id": "c3"*12}],
-            [{"id": "a"*24, "name": "Master card name", "labels": {}, "badges": {"attachments": 0}, "desc": "Desc"}]
+            [{"id": "a"*24, "name": "Main card name", "labels": {}, "badges": {"attachments": 0}, "desc": "Desc"}]
         ]
         t_pmc.return_value = (30, 40, 50)
         f = io.StringIO()
         with self.assertLogs(level='DEBUG') as cm:
             target.init()
         self.assertEqual(len(t_pmc.mock_calls), 1)
-        self.assertEqual(t_pmc.mock_calls[0], call({'id': 'aaaaaaaaaaaaaaaaaaaaaaaa', 'name': 'Master card name', 'labels': {}, 'badges': {'attachments': 0}, 'desc': 'Desc'}))
-        self.assertTrue("INFO:root:Summary: processed 1 master cards (of which 30 active) that have 40 slave cards (of which 50 new)." in cm.output)
+        self.assertEqual(t_pmc.mock_calls[0], call({'id': 'aaaaaaaaaaaaaaaaaaaaaaaa', 'name': 'Main card name', 'labels': {}, 'badges': {'attachments': 0}, 'desc': 'Desc'}))
+        self.assertTrue("INFO:root:Summary: processed 1 main cards (of which 30 active) that have 40 subordinate cards (of which 50 new)." in cm.output)
 
     @patch("syncboom.perform_request")
     def test_init_propagate_card_invalid_404(self, t_pr):
@@ -1435,23 +1435,23 @@ Exiting...
         self.assertTrue("CRITICAL:root:Invalid card ID d4d4d4d4d4d4d4d4d4d4d4d4, card not found. Exiting..." in cm2.output)
 
     @patch("syncboom.perform_request")
-    def test_init_propagate_card_invalid_not_master_board(self, t_pr):
+    def test_init_propagate_card_invalid_not_main_board(self, t_pr):
         """
-        Test the initialization code with --propagate and --card that's not on the master board
+        Test the initialization code with --propagate and --card that's not on the main board
         """
         # Make the script believe we ran it directly
         target.__name__ = "__main__"
         # Pass it the --cleanup and related arguments
         target.sys.argv = ["scriptname.py", "--propagate", "--config", "data/sample_config.json", "--card", "d4"*12]
         # All network requests return empty
-        t_pr.return_value = {"idBoard": "notonmasterboard"}
+        t_pr.return_value = {"idBoard": "notonmainboard"}
         # Run the init(), will run the full --propagate branch
         with self.assertRaises(SystemExit) as cm1, self.assertLogs(level='DEBUG') as cm2:
             target.init()
         self.assertEqual(cm1.exception.code, 31)
-        self.assertTrue("CRITICAL:root:Card d4d4d4d4d4d4d4d4d4d4d4d4 is not located on the master board ghi. Exiting..." in cm2.output)
+        self.assertTrue("CRITICAL:root:Card d4d4d4d4d4d4d4d4d4d4d4d4 is not located on the main board ghi. Exiting..." in cm2.output)
 
-    @patch("syncboom.process_master_card")
+    @patch("syncboom.process_main_card")
     @patch("syncboom.perform_request")
     def test_init_propagate_card(self, t_pr, t_pmc):
         """
@@ -1459,14 +1459,14 @@ Exiting...
         """
         target.__name__ = "__main__"
         target.sys.argv = ["scriptname.py", "--propagate", "--config", "data/sample_config.json", "--card", "d4"*12]
-        t_pr.side_effect = [{"idBoard": "ghi", "id": "odn", "shortLink": "eoK0Rngb", "name": "Master card name", "labels": {}, "badges": {"attachments": 0}, "desc": "Desc"}]
+        t_pr.side_effect = [{"idBoard": "ghi", "id": "odn", "shortLink": "eoK0Rngb", "name": "Main card name", "labels": {}, "badges": {"attachments": 0}, "desc": "Desc"}]
         t_pmc.return_value = (40, 50, 60)
         f = io.StringIO()
         with self.assertLogs(level='DEBUG') as cm:
             target.init()
         self.assertEqual(len(t_pmc.mock_calls), 1)
-        self.assertEqual(t_pmc.mock_calls[0], call({'idBoard': 'ghi', 'id': 'odn', 'shortLink': 'eoK0Rngb', 'name': 'Master card name', 'labels': {}, 'badges': {'attachments': 0}, 'desc': 'Desc'}))
-        self.assertTrue("INFO:root:Summary: processed 1 master cards (of which 40 active) that have 50 slave cards (of which 60 new)." in cm.output)
+        self.assertEqual(t_pmc.mock_calls[0], call({'idBoard': 'ghi', 'id': 'odn', 'shortLink': 'eoK0Rngb', 'name': 'Main card name', 'labels': {}, 'badges': {'attachments': 0}, 'desc': 'Desc'}))
+        self.assertTrue("INFO:root:Summary: processed 1 main cards (of which 40 active) that have 50 subordinate cards (of which 60 new)." in cm.output)
 
     @patch("syncboom.new_webhook")
     def test_init_webhook_new(self, t_nw):

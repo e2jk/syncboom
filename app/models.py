@@ -158,7 +158,7 @@ class Mapping(db.Model):
     name = db.Column(db.String(128), index=True)
     description = db.Column(db.String(128))
     m_type = db.Column(db.Enum("automatic", "manual", name="mappingtypes"))
-    master_board = db.Column(db.String(128))
+    main_board = db.Column(db.String(128))
     destination_lists = db.Column(db.Text())
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 

@@ -22,7 +22,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=128), nullable=True),
     sa.Column('description', sa.String(length=128), nullable=True),
-    sa.Column('master_board', sa.String(length=128), nullable=True),
+    sa.Column('main_board', sa.String(length=128), nullable=True),
     sa.Column('destination_lists', sa.Text(), nullable=True),
     sa.Column('user_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),

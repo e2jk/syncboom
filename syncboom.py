@@ -47,34 +47,34 @@ def output_summary(args, summary):
         return ""
     if not args:
         # Called from the website
-        return "Processed %d master cards (of which %d active) that have %d slave cards (of which %d new)." % (
-            summary["master_cards"],
-            summary["active_master_cards"],
-            summary["slave_card"],
-            summary["new_slave_card"])
+        return "Processed %d main cards (of which %d active) that have %d subordinate cards (of which %d new)." % (
+            summary["main_cards"],
+            summary["active_main_cards"],
+            summary["subordinate_card"],
+            summary["new_subordinate_card"])
     else:
         # Called from the script
         logging.info("="*64)
         if args.cleanup:
-            logging.info("Summary%scleaned up %d master cards and deleted %d slave cards from %d slave boards/%d slave lists." % (
+            logging.info("Summary%scleaned up %d main cards and deleted %d subordinate cards from %d subordinate boards/%d subordinate lists." % (
                 " [DRY RUN]: would have " if args.dry_run else ": ",
-                summary["cleaned_up_master_cards"],
-                summary["deleted_slave_cards"],
+                summary["cleaned_up_main_cards"],
+                summary["deleted_subordinate_cards"],
                 summary["erased_destination_boards"],
                 summary["erased_destination_lists"]))
         elif args.propagate:
-            logging.info("Summary%s: processed %d master cards (of which %d active) that have %d slave cards (of which %d %snew)." % (
+            logging.info("Summary%s: processed %d main cards (of which %d active) that have %d subordinate cards (of which %d %snew)." % (
                 " [DRY RUN]" if args.dry_run else "",
-                summary["master_cards"],
-                summary["active_master_cards"],
-                summary["slave_card"],
-                summary["new_slave_card"],
+                summary["main_cards"],
+                summary["active_main_cards"],
+                summary["subordinate_card"],
+                summary["new_subordinate_card"],
                 "would have been " if args.dry_run else ""))
 
 def get_card_attachments(card, pr_args={}):
     card_attachments = []
     if card["badges"]["attachments"] > 0:
-        logging.debug("Getting %d attachments on master card %s" % (card["badges"]["attachments"], card["id"]))
+        logging.debug("Getting %d attachments on main card %s" % (card["badges"]["attachments"], card["id"]))
         for a in perform_request("GET", "cards/%s/attachments" % card["id"], **pr_args):
             # Only keep attachments that are links to other Trello cards
             card_shorturl_regex = "https://trello.com/c/([a-zA-Z0-9_-]{8})/.*"
@@ -84,40 +84,40 @@ def get_card_attachments(card, pr_args={}):
                 card_attachments.append(a)
     return card_attachments
 
-def cleanup_test_boards(master_cards):
+def cleanup_test_boards(main_cards):
     # Check if this config has been enabled for cleaning up
     if "cleanup_boards" not in config:
         logging.critical("This configuration has not been enabled to accept the --cleanup operation. See the `cleanup_boards` section in the config file. Exiting...")
         sys.exit(43)
 
-    logging.debug("Removing slave cards attachments on the master cards")
-    cleaned_up_master_cards = 0
-    for idx, master_card in enumerate(master_cards):
+    logging.debug("Removing subordinate cards attachments on the main cards")
+    cleaned_up_main_cards = 0
+    for idx, main_card in enumerate(main_cards):
         logging.debug("="*64)
-        logging.info("Cleaning up master card %d/%d - %s" %(idx+1, len(master_cards), master_card["name"]))
-        master_card_attachments = get_card_attachments(master_card)
-        if len(master_card_attachments) > 0:
-            cleaned_up_master_cards += 1
-            for a in master_card_attachments:
-                logging.debug("Deleting attachment %s from master card %s" %(a["id"], master_card["id"]))
-                perform_request("DELETE", "cards/%s/attachments/%s" % (master_card["id"], a["id"]))
+        logging.info("Cleaning up main card %d/%d - %s" %(idx+1, len(main_cards), main_card["name"]))
+        main_card_attachments = get_card_attachments(main_card)
+        if len(main_card_attachments) > 0:
+            cleaned_up_main_cards += 1
+            for a in main_card_attachments:
+                logging.debug("Deleting attachment %s from main card %s" %(a["id"], main_card["id"]))
+                perform_request("DELETE", "cards/%s/attachments/%s" % (main_card["id"], a["id"]))
 
-        # Removing teams checklist from the master card
-        logging.debug("Retrieving checklists from card %s" % master_card["id"])
-        for c in perform_request("GET", "cards/%s/checklists" % master_card["id"]):
+        # Removing teams checklist from the main card
+        logging.debug("Retrieving checklists from card %s" % main_card["id"])
+        for c in perform_request("GET", "cards/%s/checklists" % main_card["id"]):
             if "Involved Teams" == c["name"]:
-                logging.debug("Deleting checklist %s (%s) from master card %s" %(c["name"], c["id"], master_card["id"]))
+                logging.debug("Deleting checklist %s (%s) from main card %s" %(c["name"], c["id"], main_card["id"]))
                 perform_request("DELETE", "checklists/%s" % (c["id"]))
 
-        # Removing metadata from the master cards
-        update_master_card_metadata(master_card, "")
+        # Removing metadata from the main cards
+        update_main_card_metadata(main_card, "")
 
-    logging.debug("Deleting slave cards")
+    logging.debug("Deleting subordinate cards")
     erased_destination_boards = []
     num_lists_to_cleanup = 0
     num_lists_inspected = 0
     num_erased_destination_lists = 0
-    deleted_slave_cards = 0
+    deleted_subordinate_cards = 0
     destination_lists = []
     for dl in config["destination_lists"]:
         for idx, l in enumerate((config["destination_lists"][dl])):
@@ -141,48 +141,48 @@ def cleanup_test_boards(master_cards):
         board_name = get_board_name_from_list(l)
         list_name = get_name("list", l)
         logging.debug("Retrieve cards from list %s|%s (list %d/%d)" % (board_name, list_name, num_lists_inspected, num_lists_to_cleanup))
-        slave_cards = perform_request("GET", "lists/%s/cards" % l)
-        logging.debug(slave_cards)
-        logging.debug("List %s/%s has %d cards to delete" % (board_name, list_name, len(slave_cards)))
-        if len(slave_cards) > 0:
+        subordinate_cards = perform_request("GET", "lists/%s/cards" % l)
+        logging.debug(subordinate_cards)
+        logging.debug("List %s/%s has %d cards to delete" % (board_name, list_name, len(subordinate_cards)))
+        if len(subordinate_cards) > 0:
             num_erased_destination_lists += 1
             if not board_name in erased_destination_boards:
                 erased_destination_boards.append(board_name)
-        for sc in slave_cards:
-            logging.debug("Deleting slave card %s" % sc["id"])
-            deleted_slave_cards += 1
+        for sc in subordinate_cards:
+            logging.debug("Deleting subordinate card %s" % sc["id"])
+            deleted_subordinate_cards += 1
             perform_request("DELETE", "cards/%s" % sc["id"])
-    return {"cleaned_up_master_cards": cleaned_up_master_cards,
-            "deleted_slave_cards": deleted_slave_cards,
+    return {"cleaned_up_main_cards": cleaned_up_main_cards,
+            "deleted_subordinate_cards": deleted_subordinate_cards,
             "erased_destination_boards": len(erased_destination_boards),
             "erased_destination_lists": num_erased_destination_lists}
 
-def split_master_card_metadata(master_card_desc):
-    if METADATA_SEPARATOR not in master_card_desc:
-        if METADATA_PHRASE not in master_card_desc:
-            return [master_card_desc, ""]
+def split_main_card_metadata(main_card_desc):
+    if METADATA_SEPARATOR not in main_card_desc:
+        if METADATA_PHRASE not in main_card_desc:
+            return [main_card_desc, ""]
         else:
             # Somebody has messed with the line, but the main text is still visible
             # Cut off at that text
-            return [master_card_desc[:master_card_desc.find(METADATA_PHRASE)], ""]
+            return [main_card_desc[:main_card_desc.find(METADATA_PHRASE)], ""]
 
     else:
         # Split the main description from the metadata added after the separator
         regex_pattern = "^(.*)(%s)(.*)" % re.escape(METADATA_SEPARATOR)
-        match = re.search(regex_pattern, master_card_desc, re.DOTALL)
+        match = re.search(regex_pattern, main_card_desc, re.DOTALL)
         return [match.group(1), match.group(3)]
 
-def update_master_card_metadata(master_card, new_master_card_metadata, pr_args={}):
-    (main_desc, current_master_card_metadata) = split_master_card_metadata(master_card["desc"])
-    if new_master_card_metadata != current_master_card_metadata:
-        logging.debug("Updating master card metadata")
-        if new_master_card_metadata:
-            new_full_desc = "%s%s%s" % (main_desc, METADATA_SEPARATOR, new_master_card_metadata)
+def update_main_card_metadata(main_card, new_main_card_metadata, pr_args={}):
+    (main_desc, current_main_card_metadata) = split_main_card_metadata(main_card["desc"])
+    if new_main_card_metadata != current_main_card_metadata:
+        logging.debug("Updating main card metadata")
+        if new_main_card_metadata:
+            new_full_desc = "%s%s%s" % (main_desc, METADATA_SEPARATOR, new_main_card_metadata)
         else:
             # Also remove the metadata separator when removing the metadata
             new_full_desc = main_desc
         logging.debug(new_full_desc)
-        perform_request("PUT", "cards/%s" % master_card["id"], {"desc": new_full_desc}, **pr_args)
+        perform_request("PUT", "cards/%s" % main_card["id"], {"desc": new_full_desc}, **pr_args)
 
 @cache.memoize(60)
 def get_name(record_type, record_id, pr_args={}):
@@ -192,13 +192,13 @@ def get_name(record_type, record_id, pr_args={}):
 def get_board_name_from_list(list_id, pr_args={}):
     return get_name("board", perform_request("GET", "lists/%s" % list_id, **pr_args)["idBoard"], pr_args)
 
-def generate_master_card_metadata(slave_cards, pr_args={}):
+def generate_main_card_metadata(subordinate_cards, pr_args={}):
     mcm = ""
-    for sc in slave_cards:
+    for sc in subordinate_cards:
         mcm += "\n- '%s' on list '**%s|%s**'" % (sc["name"],
             get_name("board", sc["idBoard"], pr_args),
             get_name("list", sc["idList"], pr_args))
-    logging.debug("New master card metadata: %s" % mcm)
+    logging.debug("New main card metadata: %s" % mcm)
     return mcm
 
 def is_not_get_call(*args, **kwargs):
@@ -237,24 +237,24 @@ def perform_request(method, url, query=None, key=None, token=None):
             raise http_error
     return response.json()
 
-def create_new_slave_card(master_card, destination_list, pr_args={}):
-    logging.debug("Creating new slave card")
+def create_new_subordinate_card(main_card, destination_list, pr_args={}):
+    logging.debug("Creating new subordinate card")
     query = {
        "idList": destination_list,
-       "desc": "%s\n\nCreated from master card %s" % (master_card["desc"], master_card["shortUrl"]),
+       "desc": "%s\n\nCreated from main card %s" % (main_card["desc"], main_card["shortUrl"]),
        "pos": "bottom",
-       "idCardSource": master_card["id"],
+       "idCardSource": main_card["id"],
         # Explicitly don't keep labels,members
         "keepFromSource": "attachments,checklists,comments,due,stickers"
     }
-    new_slave_card = perform_request("POST", "cards", query, **pr_args)
-    if new_slave_card:
-        logging.debug("New slave card ID: %s" % new_slave_card["id"])
-    return new_slave_card
+    new_subordinate_card = perform_request("POST", "cards", query, **pr_args)
+    if new_subordinate_card:
+        logging.debug("New subordinate card ID: %s" % new_subordinate_card["id"])
+    return new_subordinate_card
 
-def process_master_card(master_card, args_from_app=None):
+def process_main_card(main_card, args_from_app=None):
     logging.debug("="*64)
-    logging.debug("Process master card '%s'" % master_card["name"])
+    logging.debug("Process main card '%s'" % main_card["name"])
     # Check if this card is to be synced on a destination list
     destination_lists = []
     if not args_from_app:
@@ -263,7 +263,7 @@ def process_master_card(master_card, args_from_app=None):
     else:
         conf_destination_lists = args_from_app["destination_lists"]
         pr_args = {"key": args_from_app["key"], "token": args_from_app["token"]}
-    for l in master_card["labels"]:
+    for l in main_card["labels"]:
         if not args_from_app:
             # TODO: Change script config setup from label Name to label ID (#37)
             tracked_label_value = l["name"]
@@ -273,68 +273,68 @@ def process_master_card(master_card, args_from_app=None):
             for list in conf_destination_lists[tracked_label_value]:
                 if list not in destination_lists:
                     destination_lists.append(list)
-    logging.debug("Master card is to be synced on %d destination lists" % len(destination_lists))
+    logging.debug("Main card is to be synced on %d destination lists" % len(destination_lists))
 
-    # Check if slave cards are already attached to this master card
-    linked_slave_cards = []
-    master_card_attachments = get_card_attachments(master_card, pr_args)
-    for mca in master_card_attachments:
+    # Check if subordinate cards are already attached to this main card
+    linked_subordinate_cards = []
+    main_card_attachments = get_card_attachments(main_card, pr_args)
+    for mca in main_card_attachments:
         attached_card = perform_request("GET", "cards/%s" % mca["card_shortUrl"], **pr_args)
-        linked_slave_cards.append(attached_card)
+        linked_subordinate_cards.append(attached_card)
 
-    new_master_card_metadata = ""
-    # Check if slave cards need to be unlinked
-    if len(destination_lists) == 0 and len(linked_slave_cards) > 0:
-        logging.debug("Master card has been unlinked from slave cards")
-        # Information on the master card needs to be updated to remove the reference to the slave cards
-        new_master_card_metadata = ""
-        #TODO: Determine what to do with the slave cards
+    new_main_card_metadata = ""
+    # Check if subordinate cards need to be unlinked
+    if len(destination_lists) == 0 and len(linked_subordinate_cards) > 0:
+        logging.debug("Main card has been unlinked from subordinate cards")
+        # Information on the main card needs to be updated to remove the reference to the subordinate cards
+        new_main_card_metadata = ""
+        #TODO: Determine what to do with the subordinate cards
 
     num_new_cards = 0
-    slave_cards = []
-    newly_created_slave_cards = []
+    subordinate_cards = []
+    newly_created_subordinate_cards = []
     if len(destination_lists) > 0:
         for dl in destination_lists:
-            existing_slave_card = None
-            for lsc in linked_slave_cards:
+            existing_subordinate_card = None
+            for lsc in linked_subordinate_cards:
                 if dl == lsc["idList"]:
-                    existing_slave_card = lsc
-            if existing_slave_card:
-                logging.debug("Slave card %s already exists on list %s" % (existing_slave_card["id"], dl))
-                logging.debug(existing_slave_card)
-                card = existing_slave_card
+                    existing_subordinate_card = lsc
+            if existing_subordinate_card:
+                logging.debug("Subordinate card %s already exists on list %s" % (existing_subordinate_card["id"], dl))
+                logging.debug(existing_subordinate_card)
+                card = existing_subordinate_card
             else:
-                # A new slave card needs to be created for this slave board
+                # A new subordinate card needs to be created for this subordinate board
                 num_new_cards += 1
-                card = create_new_slave_card(master_card, dl, pr_args)
+                card = create_new_subordinate_card(main_card, dl, pr_args)
                 if card:
-                    newly_created_slave_cards.append(card)
-            slave_cards.append(card)
+                    newly_created_subordinate_cards.append(card)
+            subordinate_cards.append(card)
         if card:
-            # Generate master card metadata based on the slave cards info
-            new_master_card_metadata = generate_master_card_metadata(slave_cards, pr_args)
-        logging.info("This master card has %d slave cards (%d newly created)" % (len(slave_cards), num_new_cards))
+            # Generate main card metadata based on the subordinate cards info
+            new_main_card_metadata = generate_main_card_metadata(subordinate_cards, pr_args)
+        logging.info("This main card has %d subordinate cards (%d newly created)" % (len(subordinate_cards), num_new_cards))
     else:
-        logging.info("This master card has no slave cards")
+        logging.info("This main card has no subordinate cards")
 
-    # Update the master card's metadata if needed
-    update_master_card_metadata(master_card, new_master_card_metadata, pr_args)
+    # Update the main card's metadata if needed
+    update_main_card_metadata(main_card, new_main_card_metadata, pr_args)
 
-    # Add a checklist for each team on the master card
+    # Add a checklist for each team on the main card
     if len(destination_lists) > 0 and not ("args" in globals() and args.dry_run):
-        logging.debug("Retrieving checklists from card %s" % master_card["id"])
-        master_card_checklists = perform_request("GET", "cards/%s/checklists" % master_card["id"], **pr_args)
+        logging.debug("Retrieving checklists from card %s" % main_card["id"])
+        main_card_checklists = perform_request("GET", "cards/%s/checklists" % main_card["id"], **pr_args)
         create_checklist = True
-        if master_card_checklists:
-            logging.debug("Already %d checklists on this master card: %s" % (len(master_card_checklists), ", ".join([c["name"] for c in master_card_checklists])))
-            for c in master_card_checklists:
+        if main_card_checklists:
+            logging.debug("Already %d checklists on this main card: %s" % (len(main_card_checklists), ", ".join([c["name"] for c in main_card_checklists])))
+            for c in main_card_checklists:
                 if "Involved Teams" == c["name"]:
                     #TODO: check if each team is on the checklist and update accordingly
                     create_checklist = False
-                    logging.debug("Master card already contains a checklist name 'Involved Teams', skipping checklist creation")
+                    logging.debug("Main card already contains a checklist name 'Involved Teams', skipping checklist creation")
         if create_checklist:
             logging.debug("Creating new checklist")
-            cl = perform_request("POST", "cards/%s/checklists" % master_card["id"], {"name": "Involved Teams"}, **pr_args)
+            cl = perform_request("POST", "cards/%s/checklists" % main_card["id"], {"name": "Involved Teams"}, **pr_args)
             logging.debug(cl)
             for dl in destination_lists:
                 # Use that list's board's name as checklist name
@@ -347,16 +347,16 @@ def process_master_card(master_card, args_from_app=None):
                 new_checklistitem = perform_request("POST", "checklists/%s/checkItems" % cl["id"], {"name": checklistitem_name}, **pr_args)
                 logging.debug(new_checklistitem)
 
-        #TODO: Mark checklist item as Complete if slave card is Done
+        #TODO: Mark checklist item as Complete if subordinate card is Done
 
-    # Link master and newly created child cards together
-    for card in newly_created_slave_cards:
-        logging.debug("Attaching master card %s to slave card %s" % (master_card["id"], card["id"]))
-        perform_request("POST", "cards/%s/attachments" % card["id"], {"url": master_card["url"]}, **pr_args)
-        logging.debug("Attaching slave card %s to master card %s" % (card["id"], master_card["id"]))
-        perform_request("POST", "cards/%s/attachments" % master_card["id"], {"url": card["url"]}, **pr_args)
+    # Link main and newly created child cards together
+    for card in newly_created_subordinate_cards:
+        logging.debug("Attaching main card %s to subordinate card %s" % (main_card["id"], card["id"]))
+        perform_request("POST", "cards/%s/attachments" % card["id"], {"url": main_card["url"]}, **pr_args)
+        logging.debug("Attaching subordinate card %s to main card %s" % (card["id"], main_card["id"]))
+        perform_request("POST", "cards/%s/attachments" % main_card["id"], {"url": card["url"]}, **pr_args)
 
-    return (1 if len(destination_lists) > 0 else 0, len(slave_cards), num_new_cards)
+    return (1 if len(destination_lists) > 0 else 0, len(subordinate_cards), num_new_cards)
 
 def create_new_config():
     global config
@@ -398,28 +398,28 @@ def create_new_config():
     print("           ID             |  Name")
     print("\n".join(["%s  |  %s" % (b["id"], b["name"]) for b in boards]))
 
-    # Master board
+    # Main board
     error_message = ""
-    master_board = None
-    while not master_board:
-        master_board = input("%sEnter your master board ID ('q' to quit): " % error_message)
-        if master_board.lower() == "q":
+    main_board = None
+    while not main_board:
+        main_board = input("%sEnter your main board ID ('q' to quit): " % error_message)
+        if main_board.lower() == "q":
             print("Exiting...")
             sys.exit(37)
-        if not re.match("^[0-9a-fA-F]{24}$", master_board):
-            master_board = None
+        if not re.match("^[0-9a-fA-F]{24}$", main_board):
+            main_board = None
             error_message = "Invalid board ID, must be 24 characters. "
-        elif master_board not in [b["id"] for b in boards]:
-            master_board = None
+        elif main_board not in [b["id"] for b in boards]:
+            main_board = None
             error_message = "This is not the ID of one of the boards you have access to. "
-    config["master_board"] = master_board
+    config["main_board"] = main_board
 
     # Get the name of the selected board, and the lists associated with the other boards
     board_name = None
     lists_from_other_boards = []
     lists_output = ""
     for b in boards:
-        if b["id"] == master_board:
+        if b["id"] == main_board:
             board_name = b["name"]
         else:
             lists_output += "\n\nLists from board '%s':\n           ID             |  Name" % b["name"]
@@ -439,8 +439,8 @@ def create_new_config():
             sys.exit(38)
     config["name"] = config_name
 
-    # Get the labels associated with the master board
-    labels = perform_request("GET", "boards/%s/labels" % master_board)
+    # Get the labels associated with the main board
+    labels = perform_request("GET", "boards/%s/labels" % main_board)
     print("These are the labels from the selected board and their associated IDs:")
     print("           ID             |  Label")
     label_names = []
@@ -522,12 +522,12 @@ def create_new_config():
     return config_file
 
 def new_webhook():
-    logging.debug("Creating a new webhook for master board %s" % config["master_board"])
+    logging.debug("Creating a new webhook for main board %s" % config["main_board"])
     query = {
         #TODO: direct to our future web endpoint
         #TODO: pass config filename for easier retrieval when processing a webhook
         "callbackURL": "https://webhook.site/04b7baf0-1a59-41e2-b41a-245abeabc847?c=config",
-        "idModel": config["master_board"]
+        "idModel": config["main_board"]
     }
     webhooks = perform_request("POST", "webhooks", query)
     logging.debug(json.dumps(webhooks, indent=2))
@@ -539,10 +539,10 @@ def list_webhooks():
     return webhooks
 
 def delete_webhook():
-    logging.debug("Delete existing webhook for master board %s" % config["master_board"])
+    logging.debug("Delete existing webhook for main board %s" % config["main_board"])
     for w in list_webhooks():
-        if w["idModel"] == config["master_board"]:
-            # Delete the webhook for that config's master model
+        if w["idModel"] == config["main_board"]:
+            # Delete the webhook for that config's main model
             perform_request("DELETE", "webhooks/%s" % w["id"])
             logging.debug("Webhook %s deleted" % w["id"])
 
@@ -557,14 +557,14 @@ def load_config(config_file):
 def parse_args(arguments):
     parser = argparse.ArgumentParser(description="Sync cards between different teams' Trello boards")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-p", "--propagate", action='store_true', required=False, help="Propagate the master cards to the slave boards")
-    group.add_argument("-cu", "--cleanup", action='store_true', required=False, help="Clean up all master cards and delete all cards from the slave boards (ONLY TO BE USED IN DEMO MODE)")
+    group.add_argument("-p", "--propagate", action='store_true', required=False, help="Propagate the main cards to the subordinate boards")
+    group.add_argument("-cu", "--cleanup", action='store_true', required=False, help="Clean up all main cards and delete all cards from the subordinate boards (ONLY TO BE USED IN DEMO MODE)")
     group.add_argument("-nc", "--new-config", action='store_true', required=False, help="Create a new configuration file")
     group.add_argument("-w", "--webhook", choices=["new", "list", "delete"], action='store', required=False, help="Create new, list or delete existing webhooks")
 
     # These arguments are only to be used in conjunction with --propagate
-    parser.add_argument("-c", "--card", action='store', required=False, help="Specify which master card to propagate. Only to be used in conjunction with --propagate")
-    parser.add_argument("-l", "--list", action='store', required=False, help="Specify which master list to propagate. Only to be used in conjunction with --propagate")
+    parser.add_argument("-c", "--card", action='store', required=False, help="Specify which main card to propagate. Only to be used in conjunction with --propagate")
+    parser.add_argument("-l", "--list", action='store', required=False, help="Specify which main list to propagate. Only to be used in conjunction with --propagate")
 
     # General arguments (can be used both with --propagate and --cleanup)
     parser.add_argument("-dr", "--dry-run", action='store_true', required=False, help="Do not create, update or delete any records")
@@ -647,63 +647,63 @@ def init():
                 # Cleanup deletes data, ensure the user is aware of that
                 warning_acknowledged = False
                 while not warning_acknowledged:
-                    s = input("WARNING: this will delete all cards on the slave lists. Type 'YES' to confirm, or 'q' to quit: ")
+                    s = input("WARNING: this will delete all cards on the subordinate lists. Type 'YES' to confirm, or 'q' to quit: ")
                     if s.lower() == "q":
                         print("Exiting...")
                         sys.exit(34)
                     if s.lower() in ("yes", "oui", "ok", "yep", "no problemo", "aye"):
                         warning_acknowledged = True
-            logging.debug("Get list of cards on the master Trello board")
-            master_cards = perform_request("GET", "boards/%s/cards" % config["master_board"])
-            # Delete all the master card attachments and cards on the slave boards
-            summary = cleanup_test_boards(master_cards)
+            logging.debug("Get list of cards on the main Trello board")
+            main_cards = perform_request("GET", "boards/%s/cards" % config["main_board"])
+            # Delete all the main card attachments and cards on the subordinate boards
+            summary = cleanup_test_boards(main_cards)
         elif args.propagate:
-            summary = {"master_cards": 0, "active_master_cards": 0, "slave_card": 0, "new_slave_card": 0}
+            summary = {"main_cards": 0, "active_main_cards": 0, "subordinate_card": 0, "new_subordinate_card": 0}
             if args.card:
-                # Validate that this specific card is on the master board
+                # Validate that this specific card is on the main board
                 try:
-                    master_card = perform_request("GET", "cards/%s" % args.card)
+                    main_card = perform_request("GET", "cards/%s" % args.card)
                 except requests.exceptions.HTTPError:
                     logging.critical("Invalid card ID %s, card not found. Exiting..." % args.card)
                     sys.exit(33)
-                if master_card["idBoard"] == config["master_board"]:
-                    logging.debug("Card %s/%s is on the master board" % (master_card["id"], master_card["shortLink"]))
+                if main_card["idBoard"] == config["main_board"]:
+                    logging.debug("Card %s/%s is on the main board" % (main_card["id"], main_card["shortLink"]))
                     # Process that single card
-                    output = process_master_card(master_card)
-                    summary["master_cards"] = 1
-                    summary["active_master_cards"] = output[0]
-                    summary["slave_card"] += output[1]
-                    summary["new_slave_card"] += output[2]
+                    output = process_main_card(main_card)
+                    summary["main_cards"] = 1
+                    summary["active_main_cards"] = output[0]
+                    summary["subordinate_card"] += output[1]
+                    summary["new_subordinate_card"] += output[2]
                 else:
-                    #TODO: Check if this is a slave card to process the associated master card
-                    logging.critical("Card %s is not located on the master board %s. Exiting..." % (args.card, config["master_board"]))
+                    #TODO: Check if this is a subordinate card to process the associated main card
+                    logging.critical("Card %s is not located on the main board %s. Exiting..." % (args.card, config["main_board"]))
                     sys.exit(31)
             else:
                 if args.list:
-                    # Validate that this specific list is on the master board
-                    master_lists = perform_request("GET", "boards/%s/lists" % config["master_board"])
-                    valid_master_list = False
-                    for master_list in master_lists:
-                        if args.list == master_list["id"]:
-                            logging.debug("List %s is on the master board" % master_list["id"])
-                            valid_master_list = True
-                            # Get the list of cards on this master list
-                            master_cards = perform_request("GET", "lists/%s/cards" % master_list["id"])
+                    # Validate that this specific list is on the main board
+                    main_lists = perform_request("GET", "boards/%s/lists" % config["main_board"])
+                    valid_main_list = False
+                    for main_list in main_lists:
+                        if args.list == main_list["id"]:
+                            logging.debug("List %s is on the main board" % main_list["id"])
+                            valid_main_list = True
+                            # Get the list of cards on this main list
+                            main_cards = perform_request("GET", "lists/%s/cards" % main_list["id"])
                             break
-                    if not valid_master_list:
-                        logging.critical("List %s is not on the master board %s. Exiting..." % (args.list, config["master_board"]))
+                    if not valid_main_list:
+                        logging.critical("List %s is not on the main board %s. Exiting..." % (args.list, config["main_board"]))
                         sys.exit(32)
                 else:
-                    logging.debug("Get list of cards on the master Trello board")
-                    master_cards = perform_request("GET", "boards/%s/cards" % config["master_board"])
-                # Loop over all cards on the master board or list to sync the slave boards
-                for idx, master_card in enumerate(master_cards):
-                    logging.info("Processing master card %d/%d - %s" %(idx+1, len(master_cards), master_card["name"]))
-                    output = process_master_card(master_card)
-                    summary["master_cards"] = len(master_cards)
-                    summary["active_master_cards"] += output[0]
-                    summary["slave_card"] += output[1]
-                    summary["new_slave_card"] += output[2]
+                    logging.debug("Get list of cards on the main Trello board")
+                    main_cards = perform_request("GET", "boards/%s/cards" % config["main_board"])
+                # Loop over all cards on the main board or list to sync the subordinate boards
+                for idx, main_card in enumerate(main_cards):
+                    logging.info("Processing main card %d/%d - %s" %(idx+1, len(main_cards), main_card["name"]))
+                    output = process_main_card(main_card)
+                    summary["main_cards"] = len(main_cards)
+                    summary["active_main_cards"] += output[0]
+                    summary["subordinate_card"] += output[1]
+                    summary["new_subordinate_card"] += output[2]
         elif args.webhook:
             if args.webhook == "new":
                 new_webhook()

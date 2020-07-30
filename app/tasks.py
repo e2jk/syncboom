@@ -13,7 +13,7 @@ from rq import get_current_job
 from app import create_app, db
 from app.models import Task, Mapping, User
 from app.email import send_email
-from syncboom import perform_request, process_master_card, output_summary
+from syncboom import perform_request, process_main_card, output_summary
 
 app = create_app()
 app.app_context().push()
@@ -42,29 +42,29 @@ def run_mapping(mapping_id, run_type, elem_id):
             if run_type == "card":
                 status_information = "Job running... Processing one single card."
                 _set_task_progress(0, status_information)
-                master_cards = [perform_request("GET", "cards/%s" % elem_id,
+                main_cards = [perform_request("GET", "cards/%s" % elem_id,
                     key=args_from_app["key"], token=args_from_app["token"])]
             elif run_type in ("list", "board"):
-                master_cards = perform_request("GET", "%s/%s/cards" %
+                main_cards = perform_request("GET", "%s/%s/cards" %
                     (run_type, elem_id),
                     key=args_from_app["key"], token=args_from_app["token"])
                 status_information = "Job running... Processing %d cards." % \
-                    len(master_cards)
+                    len(main_cards)
                 _set_task_progress(0, status_information)
             summary = {
-                "master_cards": len(master_cards),
-                "active_master_cards": 0,
-                "slave_card": 0,
-                "new_slave_card": 0}
-            for idx, master_card in enumerate(master_cards):
-                app.logger.info("Processing master card %d/%d - %s" %
-                    (idx+1, len(master_cards), master_card["name"]))
-                output = process_master_card(master_card, args_from_app)
-                summary["active_master_cards"] += output[0]
-                summary["slave_card"] += output[1]
-                summary["new_slave_card"] += output[2]
-                if idx < len(master_cards)-1:
-                    _set_task_progress(int(100.0 * (idx+1) / len(master_cards)))
+                "main_cards": len(main_cards),
+                "active_main_cards": 0,
+                "subordinate_card": 0,
+                "new_subordinate_card": 0}
+            for idx, main_card in enumerate(main_cards):
+                app.logger.info("Processing main card %d/%d - %s" %
+                    (idx+1, len(main_cards), main_card["name"]))
+                output = process_main_card(main_card, args_from_app)
+                summary["active_main_cards"] += output[0]
+                summary["subordinate_card"] += output[1]
+                summary["new_subordinate_card"] += output[2]
+                if idx < len(main_cards)-1:
+                    _set_task_progress(int(100.0 * (idx+1) / len(main_cards)))
             status_information = "Run complete. %s" % output_summary(None, summary)
         else:
             app.logger.error("Invalid task, ignoring")
