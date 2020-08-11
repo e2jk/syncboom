@@ -1454,7 +1454,8 @@ class MappingCase(WebsiteTestCase):
     @patch("app.mapping.routes.flash")
     @patch("app.mapping.routes.current_user")
     @patch("app.mapping.routes.perform_request")
-    def test_mapping_new(self, amrpr, amrcu, amrf):
+    @patch("app.mapping.routes.new_webhook")
+    def test_mapping_new(self, amrnw, amrpr, amrcu, amrf):
         (u, m) = self.create_user_mapping_and_login()
         self.assertEqual(m.id, 1)
         ds1ok, ds2ok, ds3ok, ds4ok = self.get_data_step_valid()
@@ -1592,6 +1593,8 @@ class MappingCase(WebsiteTestCase):
             redirect_url="http://localhost/")
         self.assertEqual(amrf.mock_calls,[call('Your new mapping "Mapping ' \
             'name" has been created.')])
+        # Confirm we'd have set up a new webhook for this new mapping
+        self.assertEqual(len(amrnw.mock_calls), 1)
         m2 = Mapping.query.filter_by(id=m.id+1).first()
         self.assertEqual(m2.id, 2)
 

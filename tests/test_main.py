@@ -919,16 +919,15 @@ class TestNewWebhook(FlaskTestCase):
         """
         Test creating a new webhook, Dev mode with no temporary UUID defined
         """
-        target.config = {"master_board": "cde"}
         # Generate a random UUID
         uuid = uuid4()
         t_pr.side_effect = [{"uuid": str(uuid)}, {}]
         # Generate a random UUID and save it in a temporary file
         (temp_fd, temp_webhook_file) = tempfile.mkstemp()
-        target.new_webhook(temp_webhook_file)
+        target.new_webhook("cde", temp_webhook_file=temp_webhook_file)
         expected = [
-            call('POST', 'token', base_url='https://webhook.site/%s'),
-            call('POST', 'webhooks', {'callbackURL': 'https://webhook.site/%s?c=config' % uuid, 'idModel': 'cde'})
+            call('POST', 'token', base_url='https://webhook.site/%s', key=None, token=None),
+            call('POST', 'webhooks', {'callbackURL': 'https://webhook.site/%s?c=config' % uuid, 'idModel': 'cde'}, key=None, token=None)
         ]
         self.assertEqual(t_pr.mock_calls, expected)
         self.assertTrue(os.path.isfile(temp_webhook_file))
@@ -941,17 +940,16 @@ class TestNewWebhook(FlaskTestCase):
         """
         Test creating a new webhook, Dev mode with a valid temporary UUID defined
         """
-        target.config = {"master_board": "cde"}
         t_pr.return_value = {}
         # Generate a random UUID and save it in a temporary file
         uuid = uuid4()
         (temp_fd, temp_webhook_file) = tempfile.mkstemp()
         with open(temp_webhook_file, "w") as json_file:
             json.dump({"uuid": str(uuid)}, json_file, indent=2)
-        target.new_webhook(temp_webhook_file)
+        target.new_webhook("cde", temp_webhook_file=temp_webhook_file)
         expected = [
-            call('GET', 'token/%s' % uuid, base_url='https://webhook.site/%s'),
-            call('POST', 'webhooks', {'callbackURL': 'https://webhook.site/%s?c=config' % uuid, 'idModel': 'cde'})
+            call('GET', 'token/%s' % uuid, base_url='https://webhook.site/%s', key=None, token=None),
+            call('POST', 'webhooks', {'callbackURL': 'https://webhook.site/%s?c=config' % uuid, 'idModel': 'cde'}, key=None, token=None)
         ]
         self.assertEqual(t_pr.mock_calls, expected)
         # Remove the temporary file
@@ -964,12 +962,12 @@ class TestNewWebhook(FlaskTestCase):
         """
         Test creating a new webhook, Prod mode
         """
-        target.config = {"master_board": "cde"}
+        # target.config = {"master_board": "cde"}
         s_ipe.return_value = True
         t_pr.return_value = {}
-        target.new_webhook()
+        target.new_webhook("cde")
         expected = [
-            call('POST', 'webhooks', {'callbackURL': 'https://syncboom.com/webhooks/1/?c=config', 'idModel': 'cde'})
+            call('POST', 'webhooks', {'callbackURL': 'https://syncboom.com/webhooks/1/?c=config', 'idModel': 'cde'}, key=None, token=None)
         ]
         self.assertEqual(t_pr.mock_calls, expected)
 
@@ -983,7 +981,7 @@ class TestListWebhooks(FlaskTestCase):
         target.config = {"token": "jkl"}
         t_pr.return_value = {"dummy": "list"}
         webhooks = target.list_webhooks()
-        expected = [call('GET', 'tokens/jkl/webhooks')]
+        expected = [call('GET', 'tokens/jkl/webhooks', key=None, token="jkl")]
         self.assertEqual(t_pr.mock_calls, expected)
         self.assertEqual(webhooks, t_pr.return_value)
 
@@ -994,10 +992,10 @@ class TestDeleteWebhook(FlaskTestCase):
         """
         Test deleting this board's webhook when no webhook exists
         """
-        target.config = {"token": "jkl", "master_board": "cde"}
+        target.config = {"token": "jkl"}
         t_pr.return_value = {}
-        webhooks = target.delete_webhook()
-        expected = [call('GET', 'tokens/jkl/webhooks')]
+        webhooks = target.delete_webhook("cde")
+        expected = [call('GET', 'tokens/jkl/webhooks', key=None, token="jkl")]
         self.assertEqual(t_pr.mock_calls, expected)
 
     @patch("syncboom.perform_request")
@@ -1005,11 +1003,11 @@ class TestDeleteWebhook(FlaskTestCase):
         """
         Test deleting this board's webhook when there is one webhook for that board
         """
-        target.config = {"token": "jkl", "master_board": "cde"}
-        t_pr.side_effect = [[{"id": "kdfg", "idModel": target.config["master_board"]}], {}]
-        webhooks = target.delete_webhook()
-        expected = [call('GET', 'tokens/jkl/webhooks'),
-            call('DELETE', 'webhooks/kdfg')]
+        target.config = {"token": "jkl"}
+        t_pr.side_effect = [[{"id": "kdfg", "idModel": "cde"}], {}]
+        webhooks = target.delete_webhook("cde")
+        expected = [call('GET', 'tokens/jkl/webhooks', key=None, token="jkl"),
+            call('DELETE', 'webhooks/kdfg', key=None, token=None)]
         self.assertEqual(t_pr.mock_calls, expected)
 
     @patch("syncboom.perform_request")
@@ -1017,10 +1015,10 @@ class TestDeleteWebhook(FlaskTestCase):
         """
         Test deleting this board's webhook when there is one webhook but not for that board
         """
-        target.config = {"token": "jkl", "master_board": "this_board"}
+        target.config = {"token": "jkl"}
         t_pr.return_value = [{"id": "kdfg", "idModel": "other_board"}]
-        webhooks = target.delete_webhook()
-        expected = [call('GET', 'tokens/jkl/webhooks')]
+        webhooks = target.delete_webhook("this_board")
+        expected = [call('GET', 'tokens/jkl/webhooks', key=None, token="jkl")]
         self.assertEqual(t_pr.mock_calls, expected)
 
     @patch("syncboom.perform_request")
@@ -1042,11 +1040,11 @@ class TestDeleteWebhook(FlaskTestCase):
         """
         Test deleting this board's webhook when there are multiple webhook including for that board
         """
-        target.config = {"token": "jkl", "master_board": "this_board"}
+        target.config = {"token": "jkl"}
         t_pr.return_value = [{"id": "kdfg1", "idModel": "other_board"},
             {"id": "kdfg2", "idModel": "yet_another_board"}]
-        webhooks = target.delete_webhook()
-        expected = [call('GET', 'tokens/jkl/webhooks')]
+        webhooks = target.delete_webhook("this_board")
+        expected = [call('GET', 'tokens/jkl/webhooks', key=None, token="jkl")]
         self.assertEqual(t_pr.mock_calls, expected)
 
 
@@ -1532,7 +1530,7 @@ Exiting...
         target.sys.argv = ["scriptname.py", "--debug", "--config", "data/sample_config.json", "--webhook", "new"]
         target.init()
         # Confirm we called new_webhook()
-        self.assertEqual(t_nw.mock_calls, [call()])
+        self.assertEqual(t_nw.mock_calls, [call("ghi")])
 
     @patch("syncboom.list_webhooks")
     def test_init_webhook_list(self, t_lw):
@@ -1554,7 +1552,7 @@ Exiting...
         target.sys.argv = ["scriptname.py", "--debug", "--config", "data/sample_config.json", "--webhook", "delete"]
         target.init()
         # Confirm we called delete_webhook()
-        self.assertEqual(t_dw.mock_calls, [call()])
+        self.assertEqual(t_dw.mock_calls, [call("ghi")])
 
 
 class TestLicense(FlaskTestCase):

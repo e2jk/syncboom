@@ -18,7 +18,7 @@ import requests
 import re
 from wtforms import BooleanField
 import json
-from syncboom import perform_request
+from syncboom import perform_request, new_webhook, delete_webhook
 
 
 @bp.before_app_request
@@ -178,8 +178,18 @@ def new_or_edit(mapping_id=None):
 
             # Deactivate previous webhook or create a new webhook
             if deactivate_previous_webhook:
-                pass
+                #TODO: make sure only the webhook for this mapping is deleted,
+                # not all webhooks for this master board (could be present in
+                # different mappings)
+                delete_webhook(mapping.master_board,
+                    key=current_app.config['TRELLO_API_KEY'],
+                    token=current_user.trello_token)
             elif mapping_type_changed and mapping.m_type == "automatic":
+                new_webhook(mapping.master_board,
+                    key=current_app.config['TRELLO_API_KEY'],
+                    token=current_user.trello_token)
+            else:
+                # No change to webhook
                 pass
 
             return redirect(url_for('main.index'))

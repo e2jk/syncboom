@@ -526,9 +526,9 @@ def create_new_config():
 def is_production_environment():
     return os.environ.get('ON_HEROKU') == True
 
-def new_webhook(temp_webhook_file = "data/temp_webhook.json"):
-    logging.debug("Creating a new webhook for master board %s" %
-        config["master_board"])
+def new_webhook(master_board, temp_webhook_file = "data/temp_webhook.json",
+    key=None, token=None):
+    logging.debug("Creating a new webhook for master board %s" % master_board)
     if is_production_environment():
         # Production URL
         callbackURL = "https://syncboom.com/webhooks/1/"
@@ -539,13 +539,13 @@ def new_webhook(temp_webhook_file = "data/temp_webhook.json"):
             # Check if we have a previous test URL that is still valid
             with open(temp_webhook_file, "r") as json_file:
                 webhook_token = json.load(json_file)
-            check_webhook_token = perform_request("GET", "token/%s" % webhook_token["uuid"], base_url='https://webhook.site/%s')
+            check_webhook_token = perform_request("GET", "token/%s" % webhook_token["uuid"], base_url='https://webhook.site/%s', key=key, token=token)
             valid_webhook_token = True
         except:
             pass
         if not valid_webhook_token:
             logging.debug("Requesting new temporary webhook token")
-            webhook_token = perform_request("POST", "token", base_url='https://webhook.site/%s')
+            webhook_token = perform_request("POST", "token", base_url='https://webhook.site/%s', key=key, token=token)
             with open(temp_webhook_file, "w") as json_file:
                 json.dump(webhook_token, json_file, indent=2)
         callbackURL = "https://webhook.site/%s" % webhook_token["uuid"]
@@ -554,23 +554,27 @@ def new_webhook(temp_webhook_file = "data/temp_webhook.json"):
     logging.debug("Webhook callback URL: %s" % callbackURL)
     query = {
         "callbackURL": callbackURL,
-        "idModel": config["master_board"]
+        "idModel": master_board
     }
-    webhooks = perform_request("POST", "webhooks", query)
+    webhooks = perform_request("POST", "webhooks", query, key=key, token=token)
     logging.debug(json.dumps(webhooks, indent=2))
 
-def list_webhooks():
+def list_webhooks(key=None, token=None):
     logging.debug("Existing webhooks:")
-    webhooks = perform_request("GET", "tokens/%s/webhooks" % config["token"])
+    if not token:
+        token = config["token"]
+    webhooks = perform_request("GET", "tokens/%s/webhooks" % token,
+        key=key, token=token)
     logging.debug(json.dumps(webhooks, indent=2))
     return webhooks
 
-def delete_webhook():
-    logging.debug("Delete existing webhook for master board %s" % config["master_board"])
-    for w in list_webhooks():
-        if w["idModel"] == config["master_board"]:
+def delete_webhook(master_board, key=None, token=None):
+    logging.debug("Delete existing webhook for master board %s" % master_board)
+    for w in list_webhooks(key=key, token=token):
+        if w["idModel"] == master_board:
             # Delete the webhook for that config's master model
-            perform_request("DELETE", "webhooks/%s" % w["id"])
+            perform_request("DELETE", "webhooks/%s" % w["id"],
+                key=key, token=token)
             logging.debug("Webhook %s deleted" % w["id"])
 
 def load_config(config_file):
@@ -733,11 +737,11 @@ def init():
                     summary["new_slave_card"] += output[2]
         elif args.webhook:
             if args.webhook == "new":
-                new_webhook()
+                new_webhook(config["master_board"])
             elif args.webhook == "list":
                 list_webhooks()
             elif args.webhook == "delete":
-                delete_webhook()
+                delete_webhook(config["master_board"])
         output_summary(args, summary)
 
 init()
